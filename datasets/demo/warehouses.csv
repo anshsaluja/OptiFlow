@@ -1,0 +1,4 @@
+warehouse_id,inventory,outbound_capacity
+north,120,100
+central,90,80
+south,75,70
