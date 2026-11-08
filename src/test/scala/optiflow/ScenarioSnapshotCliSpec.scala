@@ -69,4 +69,41 @@ class ScenarioSnapshotCliSpec extends AnyFunSuite {
       assert(Files.isRegularFile(directory.resolve("baseline.json")))
     }
   }
+
+  test("warehouse shutdown and route closure export physically constrained allocations") {
+    withTempDirectory { directory =>
+      ScenarioSnapshotCli.export(problem, directory)
+      val shutdown = read(directory.resolve("scenario-01.json"))
+      val routeClosure = read(directory.resolve("scenario-04.json"))
+      // Warehouse w1 is disabled in scenario 01; the remaining warehouse
+      // supplies all eight units at four currency units per shipment.
+      assert(shutdown.contains("\\"id\\":\\"w1\\",\\"inventory\\":0,\\"outboundCapacity\\":0"))
+      assert(!shutdown.contains("\\"warehouseId\\":\\"w1\\",\\"storeId\\":\\"s1\\""))
+      assert(shutdown.contains("\\"transportationCost\\": 32.0"))
+      // Closing the cheap route must force the same feasible expensive allocation.
+      assert(!routeClosure.contains("\\"warehouseId\\":\\"w1\\",\\"storeId\\":\\"s1\\""))
+      assert(routeClosure.contains("\\"transportationCost\\": 32.0"))
+    }
+  }
+
+  test("unavailable supply produces shortage penalties without impossible shipments") {
+    withTempDirectory { directory =>
+      val constrained = Problem(
+        Seq(Warehouse("only", 3, 3)),
+        Seq(Store("shop", 8)),
+        Seq(Route("only", "shop", 2.0, 3)),
+        shortagePenalty = 100.0
+      )
+      ScenarioSnapshotCli.export(constrained, directory)
+      val baseline = read(directory.resolve("baseline.json"))
+      val shutdown = read(directory.resolve("scenario-01.json"))
+      assert(baseline.contains("\\"fulfilledUnits\\": 3"))
+      assert(baseline.contains("\\"unfulfilledUnits\\": 5"))
+      assert(baseline.contains("\\"shortageCost\\": 500.0"))
+      assert(shutdown.contains("\\"fulfilledUnits\\": 0"))
+      assert(shutdown.contains("\\"unfulfilledUnits\\": 8"))
+      assert(shutdown.contains("\\"shortageCost\\": 800.0"))
+      assert(shutdown.contains("\\"shipments\\": []"))
+    }
+  }
 }
