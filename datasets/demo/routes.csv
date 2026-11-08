@@ -1,0 +1,13 @@
+warehouse_id,store_id,unit_cost,capacity
+north,metro,4.5,70
+north,suburb,6.0,50
+north,coastal,13.0,30
+north,rural,14.0,25
+central,metro,7.0,55
+central,suburb,4.0,60
+central,coastal,7.5,45
+central,rural,9.0,35
+south,metro,15.0,25
+south,suburb,10.0,35
+south,coastal,3.5,55
+south,rural,5.0,40
