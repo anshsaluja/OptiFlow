@@ -79,11 +79,6 @@ export function parseReport(raw: unknown): AllocationReport {
     nonnegativeInteger(s[key], key);
   for (const key of ['optimizedCost', 'transportationCost', 'shortageCost', 'greedyCost'] as const)
     nonnegativeMoney(s[key], key);
-  if (s.fulfilledUnits + s.unfulfilledUnits !== s.totalDemand ||
-      report.stores.reduce((n, store) => n + store.demand, 0) !== s.totalDemand ||
-      report.shipments.reduce((n, shipment) => n + shipment.units, 0) !== s.fulfilledUnits) {
-    throw new Error('Report totals do not reconcile');
-  }
   const unique = (ids: string[], label: string) => {
     if (ids.some((id) => !id.trim()) || new Set(ids).size !== ids.length)
       throw new Error(`Empty or duplicate ${label} IDs`);
@@ -113,6 +108,11 @@ export function parseReport(raw: unknown): AllocationReport {
     routes.add(routeKey);
     if (!close(shipment.transportCost, shipment.units * shipment.unitCost))
       throw new Error('Shipment transport cost mismatch');
+  }
+  if (s.fulfilledUnits + s.unfulfilledUnits !== s.totalDemand ||
+      report.stores.reduce((n, store) => n + store.demand, 0) !== s.totalDemand ||
+      report.shipments.reduce((n, shipment) => n + shipment.units, 0) !== s.fulfilledUnits) {
+    throw new Error('Report totals do not reconcile');
   }
   for (const w of report.warehouses) {
     const outgoing = report.shipments.filter((x) => x.warehouseId === w.id)
