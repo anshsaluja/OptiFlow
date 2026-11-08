@@ -31,12 +31,12 @@ object AllocationOptimizer {
   }
 
   def solve(problem: Problem): Result = {
-    require(problem.shortagePenalty > 0 && !problem.shortagePenalty.isInfinity && !problem.shortagePenalty.isNaN, "Penalty must be finite and positive")
+    require(problem.shortagePenalty > 0 && java.lang.Double.isFinite(problem.shortagePenalty), "Penalty must be finite and positive")
     require(problem.warehouses.map(_.id).distinct.size == problem.warehouses.size, "Duplicate warehouse ID")
     require(problem.stores.map(_.id).distinct.size == problem.stores.size, "Duplicate store ID")
     require(problem.warehouses.forall(w => w.inventory >= 0 && w.outboundCapacity >= 0), "Invalid warehouse quantities")
     require(problem.stores.forall(_.demand >= 0), "Invalid store demand")
-    require(problem.routes.forall(r => r.capacity >= 0 && r.unitCost >= 0 && !r.unitCost.isInfinity && !r.unitCost.isNaN), "Invalid route")
+    require(problem.routes.forall(r => r.capacity >= 0 && r.unitCost >= 0 && java.lang.Double.isFinite(r.unitCost)), "Invalid route")
     require(problem.routes.map(r => (r.warehouseId, r.storeId)).distinct.size == problem.routes.size, "Duplicate route")
     val warehouses = problem.warehouses.map(w => w.id -> w).toMap
     val stores = problem.stores.map(s => s.id -> s).toMap
