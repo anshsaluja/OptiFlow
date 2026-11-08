@@ -12,4 +12,28 @@ jobs:
           distribution: temurin
           java-version: '17'
       - uses: sbt/setup-sbt@v1
-      - run: sbt test
+      - name: Run optimizer regression suite
+        run: sbt test
+      - name: Generate real scenario snapshots from demo dataset
+        run: sbt "runMain optiflow.ScenarioSnapshotCli datasets/demo output/scenarios"
+      - name: Validate generated scenario manifest and report integrity
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          directory = Path("output/scenarios")
+          manifest = json.loads((directory / "manifest.json").read_text())
+          scenarios = manifest["scenarios"]
+          assert scenarios, "Expected demo disruption scenarios"
+          assert len(scenarios) <= 30
+          assert len({entry["id"] for entry in scenarios}) == len(scenarios)
+
+          reports = [manifest["baseline"]] + [entry["report"] for entry in scenarios]
+          for filename in reports:
+              assert Path(filename).name == filename and filename.endswith(".json"), filename
+              report = json.loads((directory / filename).read_text())
+              assert isinstance(report, dict), filename
+              assert report, f"Empty report: {filename}"
+          print(f"Validated baseline and {len(scenarios)} generated scenario reports")
+          PY
