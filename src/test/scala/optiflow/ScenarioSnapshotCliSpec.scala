@@ -77,12 +77,12 @@ class ScenarioSnapshotCliSpec extends AnyFunSuite {
       val routeClosure = read(directory.resolve("scenario-04.json"))
       // Warehouse w1 is disabled in scenario 01; the remaining warehouse
       // supplies all eight units at four currency units per shipment.
-      assert(shutdown.contains("\\"id\\":\\"w1\\",\\"inventory\\":0,\\"outboundCapacity\\":0"))
-      assert(!shutdown.contains("\\"warehouseId\\":\\"w1\\",\\"storeId\\":\\"s1\\""))
-      assert(shutdown.contains("\\"transportationCost\\": 32.0"))
+      assert(shutdown.contains("\"id\":\"w1\",\"inventory\":0,\"outboundCapacity\":0"))
+      assert(!shutdown.contains("\"warehouseId\":\"w1\",\"storeId\":\"s1\""))
+      assert(shutdown.contains("\"transportationCost\": 32.0"))
       // Closing the cheap route must force the same feasible expensive allocation.
-      assert(!routeClosure.contains("\\"warehouseId\\":\\"w1\\",\\"storeId\\":\\"s1\\""))
-      assert(routeClosure.contains("\\"transportationCost\\": 32.0"))
+      assert(!routeClosure.contains("\"warehouseId\":\"w1\",\"storeId\":\"s1\""))
+      assert(routeClosure.contains("\"transportationCost\": 32.0"))
     }
   }
 
@@ -97,13 +97,13 @@ class ScenarioSnapshotCliSpec extends AnyFunSuite {
       ScenarioSnapshotCli.export(constrained, directory)
       val baseline = read(directory.resolve("baseline.json"))
       val shutdown = read(directory.resolve("scenario-01.json"))
-      assert(baseline.contains("\\"fulfilledUnits\\": 3"))
-      assert(baseline.contains("\\"unfulfilledUnits\\": 5"))
-      assert(baseline.contains("\\"shortageCost\\": 500.0"))
-      assert(shutdown.contains("\\"fulfilledUnits\\": 0"))
-      assert(shutdown.contains("\\"unfulfilledUnits\\": 8"))
-      assert(shutdown.contains("\\"shortageCost\\": 800.0"))
-      assert(shutdown.contains("\\"shipments\\": []"))
+      assert(baseline.contains("\"fulfilledUnits\": 3"))
+      assert(baseline.contains("\"unfulfilledUnits\": 5"))
+      assert(baseline.contains("\"shortageCost\": 500.0"))
+      assert(shutdown.contains("\"fulfilledUnits\": 0"))
+      assert(shutdown.contains("\"unfulfilledUnits\": 8"))
+      assert(shutdown.contains("\"shortageCost\": 800.0"))
+      assert(shutdown.contains("\"shipments\": []"))
     }
   }
 }
