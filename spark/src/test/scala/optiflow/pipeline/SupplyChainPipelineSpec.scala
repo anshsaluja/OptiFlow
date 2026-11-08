@@ -54,4 +54,36 @@ class SupplyChainPipelineSpec extends AnyFunSuite with BeforeAndAfterAll {
       SupplyChainPipeline.normalize(warehouses, bad, routes)
     }
   }
+  test("network summary counts shared capacity only once") {
+    val duplicateRouteChoices = routes.union(
+      routes.withColumn("store_id", lit("s2")))
+    val twoStores = stores.union(
+      stores.withColumn("store_id", lit("s2")).withColumn("demand", lit(5)))
+    val (w, s, r, _) =
+      SupplyChainPipeline.normalize(warehouses, twoStores, duplicateRouteChoices)
+    val row = SupplyChainPipeline.networkSummary(w, s, r).head()
+    assert(row.getAs[Long]("warehouse_count") == 1L)
+    assert(row.getAs[Long]("store_count") == 2L)
+    assert(row.getAs[Long]("route_count") == 2L)
+    assert(row.getAs[Long]("total_available_units") == 6L)
+    assert(row.getAs[Long]("total_demand") == 13L)
+    assert(row.getAs[Long]("minimum_unmet_from_supply") == 7L)
+  }
+
+  test("network summary handles empty datasets") {
+    val (w, s, r, _) = SupplyChainPipeline.normalize(
+      warehouses.limit(0), stores.limit(0), routes.limit(0))
+    val row = SupplyChainPipeline.networkSummary(w, s, r).head()
+    assert(row.getAs[Long]("total_inventory") == 0L)
+    assert(row.getAs[Long]("total_demand") == 0L)
+    assert(row.getAs[Long]("minimum_unmet_from_supply") == 0L)
+  }
+
+  test("rejects negative infinity transportation cost") {
+    val bad = routes.withColumn("unit_cost", lit(Double.NegativeInfinity))
+    intercept[IllegalArgumentException] {
+      SupplyChainPipeline.normalize(warehouses, stores, bad)
+    }
+  }
+
 }
