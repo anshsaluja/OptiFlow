@@ -52,6 +52,7 @@ object SupplyChainPipeline {
       col("store_id").isNull || length(col("store_id")) === 0 ||
       col("unit_cost").isNull || isnan(col("unit_cost")) ||
       col("unit_cost") < 0 || col("unit_cost") === lit(Double.PositiveInfinity) ||
+      col("unit_cost") === lit(Double.NegativeInfinity) ||
       col("capacity").isNull || col("capacity") < 0), "Invalid route")
     assertNoRows(w.groupBy("warehouse_id").count().filter(col("count") > 1), "Duplicate warehouse")
     assertNoRows(s.groupBy("store_id").count().filter(col("count") > 1), "Duplicate store")
@@ -69,6 +70,30 @@ object SupplyChainPipeline {
       .select("warehouse_id", "store_id", "unit_cost", "capacity",
         "warehouse_available", "demand", "route_feasible_units", "max_route_transport_cost")
     (w, s, r, opportunities)
+  }
+
+  /** Network-wide, non-additive capacity diagnostics. Route opportunity units are
+    * intentionally NOT summed: warehouse and store constraints are shared.
+    * These metrics give planners a trustworthy summary without implying a solution.
+    */
+  def networkSummary(
+      warehouses: DataFrame,
+      stores: DataFrame,
+      routes: DataFrame
+  ): DataFrame = {
+    val warehouseTotals = warehouses.agg(
+      count(lit(1)).as("warehouse_count"),
+      coalesce(sum(col("inventory").cast(LongType)), lit(0L)).as("total_inventory"),
+      coalesce(sum(least(col("inventory"), col("outbound_capacity")).cast(LongType)), lit(0L))
+        .as("total_available_units"))
+    val storeTotals = stores.agg(
+      count(lit(1)).as("store_count"),
+      coalesce(sum(col("demand").cast(LongType)), lit(0L)).as("total_demand"))
+    val routeTotals = routes.agg(count(lit(1)).as("route_count"))
+    warehouseTotals.crossJoin(storeTotals).crossJoin(routeTotals)
+      .withColumn("supply_demand_gap", col("total_demand") - col("total_available_units"))
+      .withColumn("minimum_unmet_from_supply",
+        greatest(col("supply_demand_gap"), lit(0L)))
   }
 
   def main(args: Array[String]): Unit = {
@@ -92,8 +117,9 @@ object SupplyChainPipeline {
         readCsv(spark, s"$input/stores.csv", storesSchema),
         readCsv(spark, s"$input/routes.csv", routesSchema)
       )
+      val summary = networkSummary(w, s, r)
       Seq("warehouses" -> w, "stores" -> s, "routes" -> r,
-        "route_opportunities" -> opportunities).foreach { case (name, frame) =>
+        "route_opportunities" -> opportunities, "network_summary" -> summary).foreach { case (name, frame) =>
         frame.write.mode("overwrite").format(format).save(s"$output/$name")
       }
       println(s"Wrote validated $format datasets to $output")
