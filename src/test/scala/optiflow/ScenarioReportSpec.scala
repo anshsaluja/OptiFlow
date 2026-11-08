@@ -44,7 +44,7 @@ class ScenarioReportSpec extends AnyFunSuite {
     val csv = toCsv(report)
     assert(csv.contains("\"shutdown, \"\"primary\"\"\""))
     assert(csv.contains("24.0"))
-    assert(csv.linesIterator.size == 2)
+    assert(csv.split("\\n").length == 2)
   }
 
   test("duplicate scenario names are rejected") {
