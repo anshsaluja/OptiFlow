@@ -15,7 +15,7 @@ object ScenarioReportCli {
     val problem = CsvDatasetLoader.load(directory, penalty)
     val report = analyze(problem, standardScenarios(problem))
     val absolute = output.toAbsolutePath.normalize()
-    Option(absolute.getParent).foreach(Files.createDirectories(_))
+    Option(absolute.getParent).foreach(parent => Files.createDirectories(parent))
     Files.write(absolute, toCsv(report).getBytes(StandardCharsets.UTF_8))
     println(f"Baseline cost: ${report.baseline.totalCost}%.2f")
     println(s"Analyzed ${report.impacts.size} scenarios; report: $absolute")
