@@ -37,3 +37,14 @@ jobs:
               assert report, f"Empty report: {filename}"
           print(f"Validated baseline and {len(scenarios)} generated scenario reports")
           PY
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install dashboard test dependencies
+        working-directory: dashboard
+        run: npm install --no-audit --no-fund
+      - name: Validate real Scala snapshots against SvelteKit report contract
+        working-directory: dashboard
+        env:
+          OPTIFLOW_SCENARIO_DIR: ../output/scenarios
+        run: npm test
