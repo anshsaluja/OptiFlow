@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { PageData } from './$types';
+  import { filterScenarioImpacts, type ImpactFilter } from '$lib/scenario-filters';
   export let data: PageData;
   const fmt = (value: number) => new Intl.NumberFormat('en-US', { maximumFractionDigits: 2, signDisplay: 'always' }).format(value);
   const rate = (value: number | null) => value === null ? 'N/A' : `${(100 * value).toFixed(1)}%`;
@@ -8,12 +9,8 @@
   const barWidth = (delta: number, maximum: number) => `${(50 * Math.abs(delta) / maximum).toFixed(2)}%`;
   const barOffset = (delta: number, maximum: number) => `${delta < 0 ? 50 - 50 * Math.abs(delta) / maximum : 50}%`;
   let search = '';
-  let impactFilter: 'all' | 'worse' | 'savings' = 'all';
-  $: visibleImpacts = data.impacts.filter((impact) => {
-    const matchesSearch = `${impact.label} ${impact.id}`.toLowerCase().includes(search.trim().toLowerCase());
-    const matchesFilter = impactFilter === 'all' || (impactFilter === 'worse' ? impact.costDelta > 0 : impact.costDelta < 0);
-    return matchesSearch && matchesFilter;
-  });
+  let impactFilter: ImpactFilter = 'all';
+  $: visibleImpacts = filterScenarioImpacts(data.impacts, search, impactFilter);
 </script>
 
 <svelte:head>
