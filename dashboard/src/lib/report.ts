@@ -62,11 +62,7 @@ export function parseReport(raw: unknown): AllocationReport {
     }))
   };
   const s = report.summary;
-  if (s.fulfilledUnits + s.unfulfilledUnits !== s.totalDemand ||
-      report.stores.reduce((n, store) => n + store.demand, 0) !== s.totalDemand ||
-      report.shipments.reduce((n, shipment) => n + shipment.units, 0) !== s.fulfilledUnits) {
-    throw new Error('Report totals do not reconcile');
-  }
+
 
   // Treat reports as untrusted input even when loaded from a local snapshot.
   // A report must describe a physically feasible shipment plan, not merely
@@ -83,6 +79,11 @@ export function parseReport(raw: unknown): AllocationReport {
     nonnegativeInteger(s[key], key);
   for (const key of ['optimizedCost', 'transportationCost', 'shortageCost', 'greedyCost'] as const)
     nonnegativeMoney(s[key], key);
+  if (s.fulfilledUnits + s.unfulfilledUnits !== s.totalDemand ||
+      report.stores.reduce((n, store) => n + store.demand, 0) !== s.totalDemand ||
+      report.shipments.reduce((n, shipment) => n + shipment.units, 0) !== s.fulfilledUnits) {
+    throw new Error('Report totals do not reconcile');
+  }
   const unique = (ids: string[], label: string) => {
     if (ids.some((id) => !id.trim()) || new Set(ids).size !== ids.length)
       throw new Error(`Empty or duplicate ${label} IDs`);
