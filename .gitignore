@@ -1,0 +1,10 @@
+target/
+project/target/
+project/project/
+spark/target/
+spark/project/target/
+spark/project/project/
+datasets/processed/
+datasets/processed-delta/
+*.log
+.DS_Store
