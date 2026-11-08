@@ -39,7 +39,7 @@ describe('resolveSnapshotPath', () => {
     const { snapshots } = await fixture();
     await writeFile(join(snapshots, 'notes.txt'), 'not a snapshot');
     await mkdir(join(snapshots, 'folder.json'));
-    await expect(resolveSnapshotPath(snapshots, 'baseline.json\\0.txt')).rejects.toThrow();
+    await expect(resolveSnapshotPath(snapshots, 'baseline.json' + String.fromCharCode(0) + '.txt')).rejects.toThrow();
     await expect(resolveSnapshotPath(snapshots, 'notes.txt')).rejects.toThrow(/JSON file/);
     await expect(resolveSnapshotPath(snapshots, 'folder.json')).rejects.toThrow(/regular file/);
   });
