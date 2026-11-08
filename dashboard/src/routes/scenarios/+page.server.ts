@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
-import { dirname, isAbsolute, resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
+import { resolveSnapshotPath } from '$lib/server/snapshot-path';
 import type { PageServerLoad } from './$types';
 import { compareScenarios } from '$lib/scenarios';
 
@@ -21,10 +22,7 @@ export const load: PageServerLoad = async () => {
     }
     const directory = dirname(manifestPath);
     const readSnapshot = async (file: unknown) => {
-      if (typeof file !== 'string' || !file || isAbsolute(file) || file.split(/[\\/]/).includes('..')) {
-        throw new Error('Snapshot paths must be relative to the manifest directory');
-      }
-      return JSON.parse(await readFile(resolve(directory, file), 'utf8'));
+      return JSON.parse(await readFile(await resolveSnapshotPath(directory, file), 'utf8'));
     };
     const baseline = await readSnapshot(data.baseline);
     const snapshots = await Promise.all(data.scenarios.map(async (entry: unknown) => {
