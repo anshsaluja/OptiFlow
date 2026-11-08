@@ -35,6 +35,14 @@ describe('resolveSnapshotPath', () => {
     await symlink(join(outside, 'secret.json'), join(snapshots, 'escape.json'));
     await expect(resolveSnapshotPath(snapshots, 'escape.json')).rejects.toThrow(/inside the manifest/);
   });
+  it('rejects NUL bytes, non-JSON files, and directory targets', async () => {
+    const { snapshots } = await fixture();
+    await writeFile(join(snapshots, 'notes.txt'), 'not a snapshot');
+    await mkdir(join(snapshots, 'folder.json'));
+    await expect(resolveSnapshotPath(snapshots, 'baseline.json\\0.txt')).rejects.toThrow();
+    await expect(resolveSnapshotPath(snapshots, 'notes.txt')).rejects.toThrow(/JSON file/);
+    await expect(resolveSnapshotPath(snapshots, 'folder.json')).rejects.toThrow(/regular file/);
+  });
   it('rejects missing, blank, and non-string snapshot paths', async () => {
     const { snapshots } = await fixture();
     await expect(resolveSnapshotPath(snapshots, 'missing.json')).rejects.toThrow();
