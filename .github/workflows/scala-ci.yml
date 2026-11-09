@@ -48,3 +48,10 @@ jobs:
         env:
           OPTIFLOW_SCENARIO_DIR: ../output/scenarios
         run: npm test
+      - name: Install DuckDB for scenario impact analytics
+        run: python3 -m pip install 'duckdb>=1.1,<2'
+      - name: Test DuckDB analytics and query real generated snapshots
+        run: |
+          python3 -m unittest discover -s analytics -p 'test_*.py' -v
+          python3 analytics/scenario_analytics.py output/scenarios output/scenario-impact.csv
+          test -s output/scenario-impact.csv
