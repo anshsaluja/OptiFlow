@@ -67,6 +67,9 @@ class AirflowWiringTests(unittest.TestCase):
     def test_optimizer_and_analytics_commands(self):
         with tempfile.TemporaryDirectory() as temp:
             module = load_dag(temp)
+            snapshots = Path(temp) / "output" / "scenarios"
+            snapshots.mkdir(parents=True)
+            (snapshots / "manifest.json").write_text('{"scenarios": []}')
             with patch.object(module.subprocess, "run") as run:
                 module.generate_snapshots()
                 self.assertEqual(run.call_args.args[0][0], "sbt")
@@ -93,6 +96,30 @@ class AirflowWiringTests(unittest.TestCase):
                 module.check_dashboard_contract()
                 self.assertEqual(run.call_args.args[0], ["npm", "test"])
                 self.assertEqual(run.call_args.kwargs["env"]["OPTIFLOW_SCENARIO_DIR"], str(snapshots))
+
+    def test_generation_rejects_missing_or_empty_manifest(self):
+        with tempfile.TemporaryDirectory() as temp:
+            module = load_dag(temp)
+            with patch.object(module.subprocess, "run"):
+                with self.assertRaisesRegex(RuntimeError, "nonempty scenario manifest"):
+                    module.generate_snapshots()
+                snapshots = Path(temp) / "output" / "scenarios"
+                snapshots.mkdir(parents=True)
+                (snapshots / "manifest.json").write_text("")
+                with self.assertRaisesRegex(RuntimeError, "nonempty scenario manifest"):
+                    module.generate_snapshots()
+
+    def test_analytics_does_not_accept_stale_csv(self):
+        with tempfile.TemporaryDirectory() as temp:
+            module = load_dag(temp)
+            output = Path(temp) / "output" / "scenario-impact.csv"
+            output.parent.mkdir(parents=True)
+            output.write_text("old,stale,data\\n")
+            with patch.object(module.subprocess, "run") as run:
+                with self.assertRaisesRegex(RuntimeError, "missing or empty"):
+                    module.export_analytics()
+                run.assert_called_once()
+                self.assertFalse(output.exists())
 
     def test_missing_checkout_fails_before_subprocess(self):
         with tempfile.TemporaryDirectory() as temp:
