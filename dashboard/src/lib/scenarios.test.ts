@@ -72,6 +72,15 @@ describe('scenario comparison', () => {
     ])).toThrow(/unique/);
   });
 
+  it('does not expose infinite percentages for extreme finite costs', () => {
+    const [impact] = compareScenarios(report(1, 1, 1), [
+      { id: 'expensive', label: 'Expensive route', report: report(1, 1, 1e308) }
+    ]);
+    expect(Number.isFinite(impact.costDelta)).toBe(true);
+    expect(impact.costDeltaPercent).toBeNull();
+    expect(impact.transportDelta).toBeGreaterThan(0);
+  });
+
   it('uses null percentages for zero-denominator baselines', () => {
     const [impact] = compareScenarios(report(0, 0), [
       { id: 'demand', label: 'Demand surge', report: report(2, 1) }
