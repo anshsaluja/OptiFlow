@@ -76,6 +76,27 @@ describe('allocation report integrity', () => {
     expect(() => parseReport(input)).toThrow(/safe integer range/);
   });
 
+  it('rejects store fulfillment totals that overflow safe integer arithmetic', () => {
+    const input = valid();
+    const max = Number.MAX_SAFE_INTEGER;
+    input.warehouses[0].inventory = max;
+    input.warehouses[0].outboundCapacity = max;
+    input.shipments[0].units = max;
+    input.shipments[0].unitCost = 0;
+    input.shipments[0].transportCost = 0;
+    input.stores[0].demand = max;
+    input.stores[0].unmet = 1;
+    input.summary.totalDemand = max;
+    input.summary.fulfilledUnits = max;
+    input.summary.unfulfilledUnits = 1;
+    input.summary.transportationCost = 0;
+    input.summary.shortageCost = 100;
+    input.summary.optimizedCost = 100;
+    input.summary.greedyCost = 100;
+    input.summary.savingsVsGreedy = 0;
+    expect(() => parseReport(input)).toThrow(/safe integer range/);
+  });
+
   it('rejects transport-cost multiplication overflow instead of treating Infinity as matching', () => {
     const input = valid();
     input.shipments[0].unitCost = 1e308;
