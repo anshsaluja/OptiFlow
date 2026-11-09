@@ -32,20 +32,23 @@ export function compareScenarios(
   const baseline = parseReport(baselineInput);
   const ids = new Set<string>();
   return scenarios.map(({ id, label, report: raw }) => {
-    if (!id.trim() || !label.trim() || ids.has(id)) {
+    // Enforce the same canonical identity for direct callers and manifest-loaded scenarios.
+    const normalizedId = id.trim();
+    const normalizedLabel = label.trim();
+    if (!normalizedId || !normalizedLabel || ids.has(normalizedId)) {
       throw new Error('Scenario IDs must be unique and scenario labels must be nonempty');
     }
-    ids.add(id);
+    ids.add(normalizedId);
     const scenario = parseReport(raw);
     // Cost comparisons are only meaningful with the same shortage valuation.
     if (scenario.shortagePenalty !== baseline.shortagePenalty) {
-      throw new Error(`Scenario ${id} uses a different shortage penalty`);
+      throw new Error(`Scenario ${normalizedId} uses a different shortage penalty`);
     }
     const base = baseline.summary;
     const next = scenario.summary;
     return {
-      id,
-      label,
+      id: normalizedId,
+      label: normalizedLabel,
       costDelta: next.optimizedCost - base.optimizedCost,
       costDeltaPercent: base.optimizedCost === 0 ? null :
         100 * (next.optimizedCost - base.optimizedCost) / base.optimizedCost,
