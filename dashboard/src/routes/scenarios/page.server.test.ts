@@ -101,4 +101,52 @@ describe('scenario page manifest validation', () => {
     }
   });
 
+
+  it('loads real report-shaped files and ranks disruption cost impacts', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'optiflow-scenarios-valid-'));
+    directories.push(directory);
+    process.env.OPTIFLOW_SCENARIOS_PATH = join(directory, 'manifest.json');
+
+    const report = (fulfilled: number) => {
+      const demand = 8;
+      const unmet = demand - fulfilled;
+      const transportationCost = fulfilled * 2;
+      const shortageCost = unmet * 100;
+      const optimizedCost = transportationCost + shortageCost;
+      return {
+        schemaVersion: 1, status: 'OPTIMAL', shortagePenalty: 100,
+        summary: {
+          totalDemand: demand, fulfilledUnits: fulfilled, unfulfilledUnits: unmet,
+          optimizedCost, transportationCost, shortageCost,
+          greedyCost: optimizedCost + 5, savingsVsGreedy: 5
+        },
+        warehouses: [{ id: 'W', inventory: 10, outboundCapacity: 10 }],
+        stores: [{ id: 'S', demand, unmet }],
+        shipments: [{ warehouseId: 'W', storeId: 'S', units: fulfilled,
+          unitCost: 2, transportCost: transportationCost }]
+      };
+    };
+
+    await Promise.all([
+      writeFile(join(directory, 'manifest.json'), JSON.stringify({
+        baseline: 'baseline.json',
+        scenarios: [
+          { id: 'minor', label: 'Minor disruption', report: 'minor.json' },
+          { id: 'major', label: 'Major disruption', report: 'major.json' }
+        ]
+      })),
+      writeFile(join(directory, 'baseline.json'), JSON.stringify(report(5))),
+      writeFile(join(directory, 'minor.json'), JSON.stringify(report(4))),
+      writeFile(join(directory, 'major.json'), JSON.stringify(report(2)))
+    ]);
+
+    const result = await load({} as Parameters<typeof load>[0]);
+    expect(result.error).toBeNull();
+    expect(result.impacts.map((impact) => impact.id)).toEqual(['major', 'minor']);
+    expect(result.impacts[0]).toMatchObject({
+      costDelta: 294, fulfilledDelta: -3, shortageDelta: 3,
+      transportDelta: -6, shortagePenaltyDelta: 300
+    });
+    expect(result.impacts[1].costDelta).toBe(98);
+  });
 });
