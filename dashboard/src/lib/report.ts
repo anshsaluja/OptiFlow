@@ -28,7 +28,10 @@ function array<T>(value: unknown, label: string, convert: (v: Record<string, unk
   return value.map((entry) => convert(object(entry)));
 }
 function close(a: number, b: number): boolean {
-  return Math.abs(a - b) <= 1e-6 * Math.max(1, Math.abs(a), Math.abs(b));
+  // Derived totals can overflow even when every input number is finite.
+  // Infinity must never be considered equal to a finite reported cost.
+  return Number.isFinite(a) && Number.isFinite(b) &&
+    Math.abs(a - b) <= 1e-6 * Math.max(1, Math.abs(a), Math.abs(b));
 }
 export function parseReport(raw: unknown): AllocationReport {
   const value = object(raw);
@@ -109,24 +112,29 @@ export function parseReport(raw: unknown): AllocationReport {
     if (!close(shipment.transportCost, shipment.units * shipment.unitCost))
       throw new Error('Shipment transport cost mismatch');
   }
-  if (s.fulfilledUnits + s.unfulfilledUnits !== s.totalDemand ||
-      report.stores.reduce((n, store) => n + store.demand, 0) !== s.totalDemand ||
-      report.shipments.reduce((n, shipment) => n + shipment.units, 0) !== s.fulfilledUnits) {
+  // Integer sums beyond MAX_SAFE_INTEGER lose precision and can make an
+  // infeasible plan appear to reconcile. Reject these before comparing totals.
+  const safeSum = (values: number[], label: string) => {
+    const total = values.reduce((sum, value) => sum + value, 0);
+    if (!Number.isSafeInteger(total)) throw new Error(`Invalid ${label}: aggregate exceeds safe integer range`);
+    return total;
+  };
+  if (safeSum([s.fulfilledUnits, s.unfulfilledUnits], 'fulfillment totals') !== s.totalDemand ||
+      safeSum(report.stores.map((store) => store.demand), 'store demand') !== s.totalDemand ||
+      safeSum(report.shipments.map((shipment) => shipment.units), 'shipment units') !== s.fulfilledUnits) {
     throw new Error('Report totals do not reconcile');
   }
   for (const w of report.warehouses) {
-    const outgoing = report.shipments.filter((x) => x.warehouseId === w.id)
-      .reduce((sum, x) => sum + x.units, 0);
+    const outgoing = safeSum(report.shipments.filter((x) => x.warehouseId === w.id).map((x) => x.units), `warehouse ${w.id} shipments`);
     if (outgoing > Math.min(w.inventory, w.outboundCapacity))
       throw new Error(`Warehouse ${w.id} exceeds available capacity`);
   }
   for (const store of report.stores) {
-    const incoming = report.shipments.filter((x) => x.storeId === store.id)
-      .reduce((sum, x) => sum + x.units, 0);
+    const incoming = safeSum(report.shipments.filter((x) => x.storeId === store.id).map((x) => x.units), `store ${store.id} shipments`);
     if (incoming + store.unmet !== store.demand)
       throw new Error(`Store ${store.id} fulfillment mismatch`);
   }
-  if (report.stores.reduce((sum, store) => sum + store.unmet, 0) !== s.unfulfilledUnits)
+  if (safeSum(report.stores.map((store) => store.unmet), 'store shortages') !== s.unfulfilledUnits)
     throw new Error('Store shortages do not reconcile');
   if (!close(report.shipments.reduce((sum, x) => sum + x.transportCost, 0), s.transportationCost) ||
       !close(s.unfulfilledUnits * report.shortagePenalty, s.shortageCost) ||
