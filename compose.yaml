@@ -1,0 +1,21 @@
+# Local OptiFlow dashboard container. Generate snapshots on the host first (see dashboard/README.md).
+# The repository is mounted read-only; dependencies and SvelteKit-generated files live in writable volumes.
+services:
+  dashboard:
+    image: node:20-bookworm-slim
+    working_dir: /workspace/dashboard
+    command: sh -c "npm install --no-audit --no-fund && npm run dev -- --host 0.0.0.0"
+    ports:
+      - "127.0.0.1:5173:5173"
+    environment:
+      OPTIFLOW_REPORT_PATH: /workspace/output/allocation.json
+      OPTIFLOW_SCENARIOS_PATH: /workspace/output/scenarios/manifest.json
+    volumes:
+      - ./:/workspace:ro
+      - dashboard_node_modules:/workspace/dashboard/node_modules
+      - dashboard_sveltekit:/workspace/dashboard/.svelte-kit
+    restart: "no"
+
+volumes:
+  dashboard_node_modules:
+  dashboard_sveltekit:
