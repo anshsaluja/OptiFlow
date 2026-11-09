@@ -57,9 +57,26 @@ def check_dashboard_contract() -> None:
         if not isinstance(scenario, dict) or not isinstance(scenario.get("report"), str):
             raise RuntimeError("Scenario manifest contains an invalid scenario report")
         reports.append(scenario["report"])
+    if not manifest["scenarios"]:
+        raise RuntimeError("Scenario manifest contains no disruption scenarios")
+    if len(set(reports)) != len(reports):
+        raise RuntimeError("Scenario manifest references duplicate reports")
+    snapshot_root = SNAPSHOTS.resolve()
     for name in reports:
-        if not name.endswith(".json") or Path(name).name != name or not (SNAPSHOTS / name).is_file():
+        path = SNAPSHOTS / name
+        if (
+            not name.endswith(".json")
+            or Path(name).name != name
+            or not path.is_file()
+            or not path.resolve().is_relative_to(snapshot_root)
+        ):
             raise RuntimeError(f"Scenario report missing or unsafe: {name}")
+        try:
+            report = json.loads(path.read_text(encoding="utf-8"))
+        except (ValueError, UnicodeError) as exc:
+            raise RuntimeError(f"Scenario report is not valid JSON: {name}") from exc
+        if not isinstance(report, dict) or not report:
+            raise RuntimeError(f"Scenario report is empty or invalid: {name}")
     subprocess.run(
         ["npm", "test"],
         cwd=REPO_ROOT / "dashboard",
