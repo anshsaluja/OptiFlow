@@ -29,11 +29,14 @@ def run_command(*argv: str) -> None:
 
 
 def generate_snapshots() -> None:
+    # A previous run must never satisfy the success check for this run.
+    manifest = SNAPSHOTS / "manifest.json"
+    if manifest.exists():
+        manifest.unlink()
     run_command(
         "sbt",
         f"runMain optiflow.ScenarioSnapshotCli datasets/demo {SNAPSHOTS}",
     )
-    manifest = SNAPSHOTS / "manifest.json"
     if not manifest.is_file() or manifest.stat().st_size == 0:
         raise RuntimeError("Optimizer did not produce a nonempty scenario manifest")
 
