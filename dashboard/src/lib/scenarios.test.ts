@@ -26,6 +26,7 @@ describe('scenario comparison', () => {
     ]);
     expect(impact.costDelta).toBe(196);
     expect(impact.shortageDelta).toBe(2);
+    expect(impact.demandDelta).toBe(0);
     expect(impact.fulfilledDelta).toBe(-2);
     expect(impact.transportDelta).toBe(-4);
     expect(impact.shortagePenaltyDelta).toBe(200);
@@ -66,5 +67,8 @@ describe('scenario comparison', () => {
     expect(impact.costDeltaPercent).toBeNull();
     expect(impact.baselineFulfillmentRate).toBeNull();
     expect(impact.fulfillmentRate).toBe(0.5);
+    expect(impact.demandDelta).toBe(2);
+    expect(impact.fulfilledDelta).toBe(1);
+    expect(impact.shortageDelta).toBe(1);
   });
 });
