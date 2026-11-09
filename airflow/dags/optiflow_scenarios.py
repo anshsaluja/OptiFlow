@@ -33,6 +33,9 @@ def generate_snapshots() -> None:
         "sbt",
         f"runMain optiflow.ScenarioSnapshotCli datasets/demo {SNAPSHOTS}",
     )
+    manifest = SNAPSHOTS / "manifest.json"
+    if not manifest.is_file() or manifest.stat().st_size == 0:
+        raise RuntimeError("Optimizer did not produce a nonempty scenario manifest")
 
 
 def check_dashboard_contract() -> None:
@@ -48,6 +51,9 @@ def check_dashboard_contract() -> None:
 
 
 def export_analytics() -> None:
+    # Never accept a CSV left by an earlier successful DAG run.
+    if ANALYTICS.exists():
+        ANALYTICS.unlink()
     run_command(
         "python3",
         "analytics/scenario_analytics.py",
