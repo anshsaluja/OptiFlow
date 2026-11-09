@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import { dirname, resolve } from 'node:path';
+import { dirname, normalize, resolve } from 'node:path';
 import { resolveSnapshotPath } from '$lib/server/snapshot-path';
 import type { PageServerLoad } from './$types';
 import { compareScenarios } from '$lib/scenarios';
@@ -22,20 +22,23 @@ export const load: PageServerLoad = async () => {
     }
     if (!data.baseline.trim()) throw new Error('Baseline report path must be nonempty');
     const ids = new Set<string>();
-    const reportPaths = new Set<string>([data.baseline]);
+    // Normalize relative references so ./baseline.json cannot be reused as a scenario report.
+    const reportPaths = new Set<string>([normalize(data.baseline.trim())]);
     for (const entry of data.scenarios) {
       if (!entry || typeof entry !== 'object' || Array.isArray(entry)) throw new Error('Invalid scenario entry');
       const row = entry as Record<string, unknown>;
       if (typeof row.id !== 'string' || !row.id.trim() || typeof row.label !== 'string' || !row.label.trim()) {
         throw new Error('Scenario id and label must be nonempty strings');
       }
-      if (ids.has(row.id)) throw new Error(`Duplicate scenario id: ${row.id}`);
-      ids.add(row.id);
+      const id = row.id.trim();
+      if (ids.has(id)) throw new Error(`Duplicate scenario id: ${id}`);
+      ids.add(id);
       if (typeof row.report !== 'string' || !row.report.trim()) {
         throw new Error(`Scenario ${row.id} requires a nonempty report path`);
       }
-      if (reportPaths.has(row.report)) throw new Error(`Duplicate scenario report path: ${row.report}`);
-      reportPaths.add(row.report);
+      const normalizedReport = normalize(row.report.trim());
+      if (reportPaths.has(normalizedReport)) throw new Error(`Duplicate scenario report path: ${row.report}`);
+      reportPaths.add(normalizedReport);
     }
     const directory = dirname(manifestPath);
     const readSnapshot = async (file: unknown) => {
