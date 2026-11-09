@@ -11,6 +11,7 @@ export type ScenarioImpact = {
   label: string;
   costDelta: number;
   costDeltaPercent: number | null;
+  demandDelta: number;
   fulfilledDelta: number;
   shortageDelta: number;
   transportDelta: number;
@@ -48,6 +49,7 @@ export function compareScenarios(
       costDelta: next.optimizedCost - base.optimizedCost,
       costDeltaPercent: base.optimizedCost === 0 ? null :
         100 * (next.optimizedCost - base.optimizedCost) / base.optimizedCost,
+      demandDelta: next.totalDemand - base.totalDemand,
       fulfilledDelta: next.fulfilledUnits - base.fulfilledUnits,
       shortageDelta: next.unfulfilledUnits - base.unfulfilledUnits,
       transportDelta: next.transportationCost - base.transportationCost,
