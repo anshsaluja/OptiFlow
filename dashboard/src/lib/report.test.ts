@@ -53,4 +53,33 @@ describe('allocation report integrity', () => {
     input.shipments[0].transportCost = 12;
     expect(() => parseReport(input)).toThrow(/transport cost mismatch/);
   });
+  it('rejects unsafe aggregate shipment totals even when individual units are valid', () => {
+    const input = valid();
+    input.warehouses = [
+      { id: 'W', inventory: Number.MAX_SAFE_INTEGER, outboundCapacity: Number.MAX_SAFE_INTEGER },
+      { id: 'X', inventory: Number.MAX_SAFE_INTEGER, outboundCapacity: Number.MAX_SAFE_INTEGER }
+    ];
+    input.shipments = [
+      { warehouseId: 'W', storeId: 'S', units: Number.MAX_SAFE_INTEGER, unitCost: 0, transportCost: 0 },
+      { warehouseId: 'X', storeId: 'S', units: 2, unitCost: 0, transportCost: 0 }
+    ];
+    input.stores[0].demand = Number.MAX_SAFE_INTEGER;
+    input.stores[0].unmet = 0;
+    input.summary.totalDemand = Number.MAX_SAFE_INTEGER;
+    input.summary.fulfilledUnits = Number.MAX_SAFE_INTEGER;
+    input.summary.unfulfilledUnits = 0;
+    input.summary.transportationCost = 0;
+    input.summary.shortageCost = 0;
+    input.summary.optimizedCost = 0;
+    input.summary.greedyCost = 0;
+    input.summary.savingsVsGreedy = 0;
+    expect(() => parseReport(input)).toThrow(/safe integer range/);
+  });
+
+  it('rejects transport-cost multiplication overflow instead of treating Infinity as matching', () => {
+    const input = valid();
+    input.shipments[0].unitCost = 1e308;
+    input.shipments[0].transportCost = 1e308;
+    expect(() => parseReport(input)).toThrow(/transport cost mismatch/);
+  });
 });
