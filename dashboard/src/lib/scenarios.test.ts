@@ -60,6 +60,18 @@ describe('scenario comparison', () => {
     ])).toThrow(/Cost breakdown/);
   });
 
+  it('normalizes IDs and labels for direct callers and rejects whitespace-equivalent IDs', () => {
+    const impacts = compareScenarios(report(), [
+      { id: ' closure ', label: ' Warehouse closure ', report: report(8, 3) }
+    ]);
+    expect(impacts[0].id).toBe('closure');
+    expect(impacts[0].label).toBe('Warehouse closure');
+    expect(() => compareScenarios(report(), [
+      { id: 'closure', label: 'First', report: report() },
+      { id: ' closure ', label: 'Second', report: report() }
+    ])).toThrow(/unique/);
+  });
+
   it('uses null percentages for zero-denominator baselines', () => {
     const [impact] = compareScenarios(report(0, 0), [
       { id: 'demand', label: 'Demand surge', report: report(2, 1) }
