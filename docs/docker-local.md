@@ -24,6 +24,6 @@ docker compose ps
 docker compose down
 ```
 
-To clear cached dependencies and generated SvelteKit files, use `docker compose down -v` (this removes only the Compose-managed named volumes). Run `cd dashboard && npm run check && npm test` on the host for frontend checks. Scala and integration CI are configured separately in `.github/workflows/scala-ci.yml`.
+To clear cached dependencies and generated SvelteKit files, use `docker compose down -v` (this removes only the Compose-managed named volumes). Run `cd dashboard && npm run check && npm test` on the host for frontend checks. Scala and integration CI are configured in `.github/workflows/scala-ci.yml`. CI now also generates real Scala allocation and scenario snapshots, starts the Docker Compose dashboard on a GitHub-hosted runner, checks HTTP 200 responses with nonempty bodies for `/` and `/scenarios`, captures container logs on failure, and tears down the service and volumes. This is a container startup/route smoke test, not a browser interaction test or full Airflow runtime test.
 
-**Limitations:** This Compose service has no optimizer API and does not generate snapshots automatically. It is a development preview, not a production deployment. It has not been verified on a running Docker daemon in this environment.
+**Limitations:** This Compose service has no optimizer API and does not generate snapshots automatically. It is a development preview, not a production deployment. A Docker startup smoke test is configured in CI; check the workflow result before treating container startup as verified.
