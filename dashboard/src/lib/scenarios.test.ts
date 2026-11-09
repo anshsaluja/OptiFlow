@@ -73,8 +73,12 @@ describe('scenario comparison', () => {
   });
 
   it('does not expose infinite percentages for extreme finite costs', () => {
+    const expensive = report(1, 1, 1e308);
+    // At this magnitude adding five rounds away; use a consistent zero-savings report.
+    expensive.summary.greedyCost = expensive.summary.optimizedCost;
+    expensive.summary.savingsVsGreedy = 0;
     const [impact] = compareScenarios(report(1, 1, 1), [
-      { id: 'expensive', label: 'Expensive route', report: report(1, 1, 1e308) }
+      { id: 'expensive', label: 'Expensive route', report: expensive }
     ]);
     expect(Number.isFinite(impact.costDelta)).toBe(true);
     expect(impact.costDeltaPercent).toBeNull();
