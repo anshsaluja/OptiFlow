@@ -102,8 +102,8 @@ class AirflowWiringTests(unittest.TestCase):
             snapshots.mkdir(parents=True)
             manifest = snapshots / "manifest.json"
             manifest.write_text('{"baseline": "baseline.json", "scenarios": [{"report": "storm.json"}]}')
-            (snapshots / "baseline.json").write_text("{}")
-            (snapshots / "storm.json").write_text("{}")
+            (snapshots / "baseline.json").write_text('{"total_cost": 100}')
+            (snapshots / "storm.json").write_text('{"total_cost": 150}')
             with patch.object(module.subprocess, "run") as run:
                 module.check_dashboard_contract()
                 self.assertEqual(run.call_args.args[0], ["npm", "test"])
@@ -119,6 +119,26 @@ class AirflowWiringTests(unittest.TestCase):
                 module.check_dashboard_contract()
             manifest.write_text('{"baseline": "baseline.json", "scenarios": "invalid"}')
             with self.assertRaisesRegex(RuntimeError, "missing baseline or scenarios"):
+                module.check_dashboard_contract()
+            manifest.write_text('{"baseline": "baseline.json", "scenarios": []}')
+            with self.assertRaisesRegex(RuntimeError, "no disruption scenarios"):
+                module.check_dashboard_contract()
+            manifest.write_text('{"baseline": "baseline.json", "scenarios": [{"report": "baseline.json"}]}')
+            with self.assertRaisesRegex(RuntimeError, "duplicate reports"):
+                module.check_dashboard_contract()
+            manifest.write_text('{"baseline": "baseline.json", "scenarios": [{"report": "storm.json"}]}')
+            (snapshots / "storm.json").write_text("not-json")
+            with self.assertRaisesRegex(RuntimeError, "not valid JSON"):
+                module.check_dashboard_contract()
+            (snapshots / "storm.json").write_text("{}")
+            with self.assertRaisesRegex(RuntimeError, "empty or invalid"):
+                module.check_dashboard_contract()
+            (snapshots / "storm.json").write_text('{"total_cost": 150}')
+            outside = Path(temp) / "outside.json"
+            outside.write_text('{"total_cost": 150}')
+            (snapshots / "storm.json").unlink()
+            (snapshots / "storm.json").symlink_to(outside)
+            with self.assertRaisesRegex(RuntimeError, "missing or unsafe"):
                 module.check_dashboard_contract()
 
     def test_generation_rejects_missing_or_empty_manifest(self):
