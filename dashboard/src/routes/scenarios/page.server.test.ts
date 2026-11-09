@@ -78,6 +78,33 @@ describe('scenario page manifest validation', () => {
     }
   });
 
+  it('rejects scenario IDs that differ only by surrounding whitespace', async () => {
+    const result = await loadManifest({
+      baseline: 'baseline.json',
+      scenarios: [
+        { id: 'closure', label: 'North closed', report: 'north.json' },
+        { id: ' closure ', label: 'South closed', report: 'south.json' }
+      ]
+    });
+    expect(result.impacts).toEqual([]);
+    expect(result.error).toMatch(/Duplicate scenario id: closure/);
+  });
+
+  it('rejects equivalent report paths before opening files', async () => {
+    for (const scenarios of [
+      [{ id: 'closure', label: 'Closed', report: './baseline.json' }],
+      [{ id: 'closure', label: 'Closed', report: ' baseline.json ' }],
+      [
+        { id: 'closure', label: 'Closed', report: 'reports/../shared.json' },
+        { id: 'delay', label: 'Delayed', report: 'shared.json' }
+      ]
+    ]) {
+      const result = await loadManifest({ baseline: 'baseline.json', scenarios });
+      expect(result.impacts).toEqual([]);
+      expect(result.error).toMatch(/Duplicate scenario report path/);
+    }
+  });
+
   it('rejects blank baseline paths', async () => {
     const result = await loadManifest({
       baseline: '  ',
