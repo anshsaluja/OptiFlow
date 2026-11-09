@@ -46,12 +46,18 @@ export function compareScenarios(
     }
     const base = baseline.summary;
     const next = scenario.summary;
+    const costDelta = next.optimizedCost - base.optimizedCost;
+    const rawCostDeltaPercent = base.optimizedCost === 0 ? null :
+      (100 * costDelta) / base.optimizedCost;
+    // Extremely large but individually valid report costs can overflow the
+    // percentage calculation. Never send Infinity/NaN into dashboard rendering.
+    const costDeltaPercent = rawCostDeltaPercent !== null && Number.isFinite(rawCostDeltaPercent)
+      ? rawCostDeltaPercent : null;
     return {
       id: normalizedId,
       label: normalizedLabel,
-      costDelta: next.optimizedCost - base.optimizedCost,
-      costDeltaPercent: base.optimizedCost === 0 ? null :
-        100 * (next.optimizedCost - base.optimizedCost) / base.optimizedCost,
+      costDelta,
+      costDeltaPercent,
       demandDelta: next.totalDemand - base.totalDemand,
       fulfilledDelta: next.fulfilledUnits - base.fulfilledUnits,
       shortageDelta: next.unfulfilledUnits - base.unfulfilledUnits,
