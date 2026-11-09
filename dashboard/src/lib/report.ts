@@ -131,7 +131,7 @@ export function parseReport(raw: unknown): AllocationReport {
   }
   for (const store of report.stores) {
     const incoming = safeSum(report.shipments.filter((x) => x.storeId === store.id).map((x) => x.units), `store ${store.id} shipments`);
-    if (incoming + store.unmet !== store.demand)
+    if (safeSum([incoming, store.unmet], `store ${store.id} fulfillment`) !== store.demand)
       throw new Error(`Store ${store.id} fulfillment mismatch`);
   }
   if (safeSum(report.stores.map((store) => store.unmet), 'store shortages') !== s.unfulfilledUnits)
