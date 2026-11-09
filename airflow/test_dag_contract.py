@@ -70,8 +70,12 @@ class AirflowWiringTests(unittest.TestCase):
             snapshots = Path(temp) / "output" / "scenarios"
             snapshots.mkdir(parents=True)
             (snapshots / "manifest.json").write_text('{"scenarios": []}')
-            with patch.object(module.subprocess, "run") as run:
+            def write_manifest(*args, **kwargs):
+                (snapshots / "manifest.json").write_text('{"scenarios": ["fresh"]}')
+
+            with patch.object(module.subprocess, "run", side_effect=write_manifest) as run:
                 module.generate_snapshots()
+                self.assertEqual((snapshots / "manifest.json").read_text(), '{"scenarios": ["fresh"]}')
                 self.assertEqual(run.call_args.args[0][0], "sbt")
                 self.assertIn("ScenarioSnapshotCli", run.call_args.args[0][1])
                 self.assertTrue(run.call_args.kwargs["check"])
@@ -113,6 +117,20 @@ class AirflowWiringTests(unittest.TestCase):
                 (snapshots / "manifest.json").write_text("")
                 with self.assertRaisesRegex(RuntimeError, "nonempty scenario manifest"):
                     module.generate_snapshots()
+                self.assertFalse((snapshots / "manifest.json").exists())
+
+    def test_generation_rejects_stale_nonempty_manifest(self):
+        with tempfile.TemporaryDirectory() as temp:
+            module = load_dag(temp)
+            snapshots = Path(temp) / "output" / "scenarios"
+            snapshots.mkdir(parents=True)
+            manifest = snapshots / "manifest.json"
+            manifest.write_text('{"scenarios": ["stale"]}')
+            with patch.object(module.subprocess, "run") as run:
+                with self.assertRaisesRegex(RuntimeError, "nonempty scenario manifest"):
+                    module.generate_snapshots()
+                run.assert_called_once()
+            self.assertFalse(manifest.exists())
 
     def test_analytics_does_not_accept_stale_csv(self):
         with tempfile.TemporaryDirectory() as temp:
