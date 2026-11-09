@@ -6,6 +6,7 @@ the repository at OPTIFLOW_REPO_ROOT. No network services are required.
 """
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 from datetime import datetime, timedelta
@@ -42,8 +43,23 @@ def generate_snapshots() -> None:
 
 
 def check_dashboard_contract() -> None:
-    if not (SNAPSHOTS / "manifest.json").is_file():
+    manifest_path = SNAPSHOTS / "manifest.json"
+    if not manifest_path.is_file():
         raise FileNotFoundError("Scenario manifest missing after generation")
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (ValueError, UnicodeError) as exc:
+        raise RuntimeError("Scenario manifest is not valid JSON") from exc
+    if not isinstance(manifest, dict) or not isinstance(manifest.get("baseline"), str) or not isinstance(manifest.get("scenarios"), list):
+        raise RuntimeError("Scenario manifest is missing baseline or scenarios")
+    reports = [manifest["baseline"]]
+    for scenario in manifest["scenarios"]:
+        if not isinstance(scenario, dict) or not isinstance(scenario.get("report"), str):
+            raise RuntimeError("Scenario manifest contains an invalid scenario report")
+        reports.append(scenario["report"])
+    for name in reports:
+        if not name.endswith(".json") or Path(name).name != name or not (SNAPSHOTS / name).is_file():
+            raise RuntimeError(f"Scenario report missing or unsafe: {name}")
     subprocess.run(
         ["npm", "test"],
         cwd=REPO_ROOT / "dashboard",
