@@ -52,6 +52,8 @@ jobs:
         run: |
           python3 -m py_compile airflow/dags/optiflow_scenarios.py
           python3 -m unittest discover -s airflow -p 'test_*.py' -v
+      - name: Check read-only Docker Compose dashboard contract
+        run: python3 -m unittest discover -s tests -p 'test_*.py' -v
       - name: Install DuckDB for scenario impact analytics
         run: python3 -m pip install 'duckdb>=1.1,<2'
       - name: Test DuckDB analytics and query real generated snapshots
