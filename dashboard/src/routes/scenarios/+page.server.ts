@@ -49,7 +49,7 @@ export const load: PageServerLoad = async () => {
       if (!entry || typeof entry !== 'object' || Array.isArray(entry)) throw new Error('Invalid scenario entry');
       const row = entry as Record<string, unknown>;
       if (typeof row.id !== 'string' || typeof row.label !== 'string') throw new Error('Scenario id and label must be strings');
-      return { id: row.id, label: row.label, report: await readSnapshot(row.report) };
+      return { id: row.id.trim(), label: row.label.trim(), report: await readSnapshot(row.report) };
     }));
     return { impacts: compareScenarios(baseline, snapshots), error: null };
   } catch (error) {
