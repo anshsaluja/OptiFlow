@@ -67,4 +67,38 @@ describe('scenario page manifest validation', () => {
       expect(result.error).toMatch(/Invalid scenario entry|between 1 and 30 scenarios/);
     }
   });
+  it('rejects missing report paths before opening snapshot files', async () => {
+    for (const report of ['', '  ', null, 42]) {
+      const result = await loadManifest({
+        baseline: 'baseline.json',
+        scenarios: [{ id: 'closure', label: 'Warehouse closed', report }]
+      });
+      expect(result.impacts).toEqual([]);
+      expect(result.error).toMatch(/requires a nonempty report path/);
+    }
+  });
+
+  it('rejects blank baseline paths', async () => {
+    const result = await loadManifest({
+      baseline: '  ',
+      scenarios: [{ id: 'closure', label: 'Warehouse closed', report: 'closure.json' }]
+    });
+    expect(result.impacts).toEqual([]);
+    expect(result.error).toMatch(/Baseline report path must be nonempty/);
+  });
+
+  it('rejects reports reused by baseline or another scenario', async () => {
+    for (const scenarios of [
+      [{ id: 'closure', label: 'Warehouse closed', report: 'baseline.json' }],
+      [
+        { id: 'closure', label: 'Warehouse closed', report: 'shared.json' },
+        { id: 'delay', label: 'Route delayed', report: 'shared.json' }
+      ]
+    ]) {
+      const result = await loadManifest({ baseline: 'baseline.json', scenarios });
+      expect(result.impacts).toEqual([]);
+      expect(result.error).toMatch(/Duplicate scenario report path/);
+    }
+  });
+
 });
