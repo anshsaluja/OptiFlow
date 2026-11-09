@@ -35,8 +35,8 @@ class ScenarioAnalyticsTests(unittest.TestCase):
         self.assertIn("fulfillment_pct", headers)
         self.assertEqual([row[0] for row in rows], ["closure", "savings"])
         self.assertEqual(rows[0][3], 80)
-        self.assertEqual(rows[0][7], -2)
-        self.assertEqual(rows[0][8], 2)
+        self.assertEqual(rows[0][8], -2)
+        self.assertEqual(rows[0][9], 2)
         self.assertEqual(rows[1][3], -25)
 
     def test_empty_catalog_is_valid(self):
