@@ -77,12 +77,17 @@ class AirflowWiringTests(unittest.TestCase):
                 self.assertTrue(run.call_args.kwargs["check"])
                 self.assertEqual(run.call_args.kwargs["cwd"], Path(temp))
             output = Path(temp) / "output" / "scenario-impact.csv"
-            output.parent.mkdir(parents=True)
-            output.write_text("scenario,cost\nbaseline,0\n")
-            with patch.object(module.subprocess, "run") as run:
+            # Simulate a successful analytics process writing a fresh artifact.
+            # The production task deletes stale files before running.
+            def write_analytics(*args, **kwargs):
+                output.parent.mkdir(parents=True, exist_ok=True)
+                output.write_text("scenario,cost\\nbaseline,0\\n")
+
+            with patch.object(module.subprocess, "run", side_effect=write_analytics) as run:
                 module.export_analytics()
                 self.assertEqual(run.call_args.args[0][1], "analytics/scenario_analytics.py")
                 self.assertTrue(run.call_args.kwargs["check"])
+                self.assertTrue(output.is_file())
 
     def test_validation_requires_manifest(self):
         with tempfile.TemporaryDirectory() as temp:
