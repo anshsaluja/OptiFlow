@@ -100,11 +100,26 @@ class AirflowWiringTests(unittest.TestCase):
                 module.check_dashboard_contract()
             snapshots = Path(temp) / "output" / "scenarios"
             snapshots.mkdir(parents=True)
-            (snapshots / "manifest.json").write_text("{}")
+            manifest = snapshots / "manifest.json"
+            manifest.write_text('{"baseline": "baseline.json", "scenarios": [{"report": "storm.json"}]}')
+            (snapshots / "baseline.json").write_text("{}")
+            (snapshots / "storm.json").write_text("{}")
             with patch.object(module.subprocess, "run") as run:
                 module.check_dashboard_contract()
                 self.assertEqual(run.call_args.args[0], ["npm", "test"])
                 self.assertEqual(run.call_args.kwargs["env"]["OPTIFLOW_SCENARIO_DIR"], str(snapshots))
+            manifest.write_text("not-json")
+            with self.assertRaisesRegex(RuntimeError, "not valid JSON"):
+                module.check_dashboard_contract()
+            manifest.write_text('{"baseline": "baseline.json", "scenarios": [{"report": "../escape.json"}]}')
+            with self.assertRaisesRegex(RuntimeError, "missing or unsafe"):
+                module.check_dashboard_contract()
+            manifest.write_text('{"baseline": "baseline.json", "scenarios": [{"report": "missing.json"}]}')
+            with self.assertRaisesRegex(RuntimeError, "missing or unsafe"):
+                module.check_dashboard_contract()
+            manifest.write_text('{"baseline": "baseline.json", "scenarios": "invalid"}')
+            with self.assertRaisesRegex(RuntimeError, "missing baseline or scenarios"):
+                module.check_dashboard_contract()
 
     def test_generation_rejects_missing_or_empty_manifest(self):
         with tempfile.TemporaryDirectory() as temp:
