@@ -45,6 +45,11 @@ jobs:
       - name: Install dashboard test dependencies
         working-directory: dashboard
         run: npm install --no-audit --no-fund
+      - name: Type-check and build SvelteKit dashboard
+        working-directory: dashboard
+        run: |
+          npm run check
+          npm run build
       - name: Validate real Scala snapshots against SvelteKit report contract
         working-directory: dashboard
         env:
@@ -74,7 +79,11 @@ jobs:
           import urllib.error
           import urllib.request
 
-          for route in ("/", "/scenarios"):
+          expected_content = {
+              "/": ("Network overview", "Shipment allocations", "Snapshot loaded"),
+              "/scenarios": ("Scenario impact analysis", "Disruption ranking", "Cost drivers"),
+          }
+          for route, markers in expected_content.items():
               url = "http://127.0.0.1:5173" + route
               last_error = None
               for attempt in range(60):
@@ -83,7 +92,11 @@ jobs:
                           body = response.read()
                           if response.status != 200 or not body:
                               raise RuntimeError(f"{route}: status={response.status}, bytes={len(body)}")
-                          print(f"PASS {route}: HTTP {response.status}, {len(body)} bytes")
+                          html = body.decode("utf-8")
+                          missing = [marker for marker in markers if marker not in html]
+                          if missing:
+                              raise RuntimeError(f"{route}: missing rendered data markers {missing}")
+                          print(f"PASS {route}: HTTP {response.status}, {len(body)} bytes, rendered data verified")
                           break
                   except (OSError, RuntimeError) as error:
                       last_error = error
