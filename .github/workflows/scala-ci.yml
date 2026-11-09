@@ -14,6 +14,8 @@ jobs:
       - uses: sbt/setup-sbt@v1
       - name: Run optimizer regression suite
         run: sbt test
+      - name: Generate allocation report for Docker dashboard smoke test
+        run: sbt "runMain optiflow.AllocationReportCli datasets/demo output/allocation.json"
       - name: Generate real scenario snapshots from demo dataset
         run: sbt "runMain optiflow.ScenarioSnapshotCli datasets/demo output/scenarios"
       - name: Validate generated scenario manifest and report integrity
@@ -61,3 +63,37 @@ jobs:
           python3 -m unittest discover -s analytics -p 'test_*.py' -v
           python3 analytics/scenario_analytics.py output/scenarios output/scenario-impact.csv
           test -s output/scenario-impact.csv
+      - name: Validate Docker Compose configuration
+        run: docker compose config --quiet
+      - name: Start containerized dashboard
+        run: docker compose up --detach --no-build
+      - name: Smoke test allocation dashboard and Scenario Lab over HTTP
+        run: |
+          python3 - <<'PY'
+          import time
+          import urllib.error
+          import urllib.request
+
+          for route in ("/", "/scenarios"):
+              url = "http://127.0.0.1:5173" + route
+              last_error = None
+              for attempt in range(60):
+                  try:
+                      with urllib.request.urlopen(url, timeout=5) as response:
+                          body = response.read()
+                          if response.status != 200 or not body:
+                              raise RuntimeError(f"{route}: status={response.status}, bytes={len(body)}")
+                          print(f"PASS {route}: HTTP {response.status}, {len(body)} bytes")
+                          break
+                  except (OSError, RuntimeError) as error:
+                      last_error = error
+                      time.sleep(2)
+              else:
+                  raise RuntimeError(f"Dashboard route {route} did not become ready: {last_error}")
+          PY
+      - name: Capture Docker logs on failure
+        if: failure()
+        run: docker compose logs --no-color --tail=150 || true
+      - name: Stop Docker dashboard and remove test volumes
+        if: always()
+        run: docker compose down --volumes --remove-orphans || true
