@@ -17,8 +17,18 @@ export const load: PageServerLoad = async () => {
     const manifest: unknown = JSON.parse(await readFile(manifestPath, 'utf8'));
     if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest)) throw new Error('Invalid scenario manifest');
     const data = manifest as Record<string, unknown>;
-    if (typeof data.baseline !== 'string' || !Array.isArray(data.scenarios) || data.scenarios.length > 30) {
-      throw new Error('Manifest requires baseline and up to 30 scenarios');
+    if (typeof data.baseline !== 'string' || !Array.isArray(data.scenarios) || data.scenarios.length === 0 || data.scenarios.length > 30) {
+      throw new Error('Manifest requires baseline and between 1 and 30 scenarios');
+    }
+    const ids = new Set<string>();
+    for (const entry of data.scenarios) {
+      if (!entry || typeof entry !== 'object' || Array.isArray(entry)) throw new Error('Invalid scenario entry');
+      const row = entry as Record<string, unknown>;
+      if (typeof row.id !== 'string' || !row.id.trim() || typeof row.label !== 'string' || !row.label.trim()) {
+        throw new Error('Scenario id and label must be nonempty strings');
+      }
+      if (ids.has(row.id)) throw new Error(`Duplicate scenario id: ${row.id}`);
+      ids.add(row.id);
     }
     const directory = dirname(manifestPath);
     const readSnapshot = async (file: unknown) => {
