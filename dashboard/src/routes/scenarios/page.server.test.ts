@@ -158,7 +158,7 @@ describe('scenario page manifest validation', () => {
       writeFile(join(directory, 'manifest.json'), JSON.stringify({
         baseline: 'baseline.json',
         scenarios: [
-          { id: 'minor', label: 'Minor disruption', report: 'minor.json' },
+          { id: ' minor ', label: ' Minor disruption ', report: 'minor.json' },
           { id: 'major', label: 'Major disruption', report: 'major.json' }
         ]
       })),
@@ -175,5 +175,6 @@ describe('scenario page manifest validation', () => {
       transportDelta: -6, shortagePenaltyDelta: 300
     });
     expect(result.impacts[1].costDelta).toBe(98);
+    expect(result.impacts[1]).toMatchObject({ id: 'minor', label: 'Minor disruption' });
   });
 });
