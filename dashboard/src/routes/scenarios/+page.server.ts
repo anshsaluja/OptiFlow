@@ -20,7 +20,9 @@ export const load: PageServerLoad = async () => {
     if (typeof data.baseline !== 'string' || !Array.isArray(data.scenarios) || data.scenarios.length === 0 || data.scenarios.length > 30) {
       throw new Error('Manifest requires baseline and between 1 and 30 scenarios');
     }
+    if (!data.baseline.trim()) throw new Error('Baseline report path must be nonempty');
     const ids = new Set<string>();
+    const reportPaths = new Set<string>([data.baseline]);
     for (const entry of data.scenarios) {
       if (!entry || typeof entry !== 'object' || Array.isArray(entry)) throw new Error('Invalid scenario entry');
       const row = entry as Record<string, unknown>;
@@ -29,6 +31,11 @@ export const load: PageServerLoad = async () => {
       }
       if (ids.has(row.id)) throw new Error(`Duplicate scenario id: ${row.id}`);
       ids.add(row.id);
+      if (typeof row.report !== 'string' || !row.report.trim()) {
+        throw new Error(`Scenario ${row.id} requires a nonempty report path`);
+      }
+      if (reportPaths.has(row.report)) throw new Error(`Duplicate scenario report path: ${row.report}`);
+      reportPaths.add(row.report);
     }
     const directory = dirname(manifestPath);
     const readSnapshot = async (file: unknown) => {
