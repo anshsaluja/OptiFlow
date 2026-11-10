@@ -4,8 +4,8 @@ import type { ScenarioImpact } from './scenarios';
 
 const scenario = (id: string, label: string, costDelta: number): ScenarioImpact => ({
   id, label, costDelta, costDeltaPercent: null, fulfilledDelta: 0,
-  shortageDelta: 0, transportDelta: 0, shortagePenaltyDelta: 0,
-  fulfillmentRate: null, baselineFulfillmentRate: null
+  demandDelta: 0, shortageDelta: 0, transportDelta: 0, shortagePenaltyDelta: 0,
+  fulfillmentRate: null, baselineFulfillmentRate: null, fulfillmentRateDeltaPoints: null
 });
 
 const ranked = [

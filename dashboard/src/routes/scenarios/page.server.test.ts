@@ -3,6 +3,9 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { load } from './+page.server';
+import type { ScenarioImpact } from '$lib/scenarios';
+
+type LoadedScenarios = { impacts: ScenarioImpact[]; error: string | null };
 
 const originalPath = process.env.OPTIFLOW_SCENARIOS_PATH;
 const directories: string[] = [];
@@ -19,7 +22,7 @@ async function loadManifest(manifest: unknown) {
   process.env.OPTIFLOW_SCENARIOS_PATH = join(directory, 'manifest.json');
   await writeFile(process.env.OPTIFLOW_SCENARIOS_PATH, JSON.stringify(manifest));
   // Invalid manifests must fail before reading baseline or scenario report files.
-  return await load({} as Parameters<typeof load>[0]) as { impacts: unknown[]; error: string | null };
+  return await load({} as Parameters<typeof load>[0]) as LoadedScenarios;
 }
 
 describe('scenario page manifest validation', () => {
@@ -167,7 +170,7 @@ describe('scenario page manifest validation', () => {
       writeFile(join(directory, 'major.json'), JSON.stringify(report(2)))
     ]);
 
-    const result = await load({} as Parameters<typeof load>[0]);
+    const result = await load({} as Parameters<typeof load>[0]) as LoadedScenarios;
     expect(result.error).toBeNull();
     expect(result.impacts.map((impact) => impact.id)).toEqual(['major', 'minor']);
     expect(result.impacts[0]).toMatchObject({
