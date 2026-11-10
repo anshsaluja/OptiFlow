@@ -48,9 +48,9 @@ export function compareScenarios(
     const next = scenario.summary;
     const costDelta = next.optimizedCost - base.optimizedCost;
     const rawCostDeltaPercent = base.optimizedCost === 0 ? null :
-      (100 * costDelta) / base.optimizedCost;
-    // Extremely large but individually valid report costs can overflow the
-    // percentage calculation. Never send Infinity/NaN into dashboard rendering.
+      (costDelta / base.optimizedCost) * 100;
+    // Divide before multiplying to preserve representable percentages for large
+    // finite costs; genuinely unrepresentable changes remain null.
     const costDeltaPercent = rawCostDeltaPercent !== null && Number.isFinite(rawCostDeltaPercent)
       ? rawCostDeltaPercent : null;
     return {
