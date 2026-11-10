@@ -23,7 +23,7 @@ test -s output/scenarios/manifest.json
 echo '[4/6] Dashboard static checks, tests and production build'
 (
   cd dashboard
-  npm ci
+  npm install --no-package-lock --no-audit --no-fund
   npm run check
   npm test
   npm run build
