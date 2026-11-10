@@ -11,6 +11,15 @@ for command in sbt node npm python3; do
   fi
 done
 
+# Remove only known generated artifacts before invoking producers. Otherwise a stale
+# report can make a broken CLI look successful when previous output remains.
+mkdir -p output/scenarios
+rm -f output/allocation.json output/scenarios/manifest.json output/scenario-impact.csv
+rm -f output/scenarios/baseline.json
+for snapshot in output/scenarios/scenario-{01..30}.json; do
+  rm -f "$snapshot"
+done
+
 echo '[1/6] Scala optimizer tests'
 sbt test
 echo '[2/6] Generate allocation report'
@@ -19,6 +28,24 @@ echo '[3/6] Generate scenario reports'
 sbt "runMain optiflow.ScenarioSnapshotCli datasets/demo output/scenarios"
 test -s output/allocation.json
 test -s output/scenarios/manifest.json
+test -s output/scenarios/baseline.json
+# Check that the manifest and every referenced report were actually generated.
+python3 - <<'PY'
+import json
+from pathlib import Path
+
+root = Path("output/scenarios")
+manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+scenarios = manifest["scenarios"]
+assert isinstance(scenarios, list) and scenarios, "No scenarios generated"
+for filename in [manifest["baseline"], *(item["report"] for item in scenarios)]:
+    assert isinstance(filename, str) and Path(filename).name == filename, filename
+    report = root / filename
+    assert report.is_file() and report.stat().st_size > 0, f"Missing report: {report}"
+    data = json.loads(report.read_text(encoding="utf-8"))
+    assert data["schemaVersion"] == 1, f"Unsupported schema: {report}"
+print(f"Verified {len(scenarios) + 1} generated JSON reports")
+PY
 
 echo '[4/6] Dashboard static checks, tests and production build'
 (
