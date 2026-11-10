@@ -18,6 +18,7 @@ export type ScenarioImpact = {
   shortagePenaltyDelta: number;
   fulfillmentRate: number | null;
   baselineFulfillmentRate: number | null;
+  fulfillmentRateDeltaPoints: number | null;
 };
 
 /**
@@ -64,7 +65,10 @@ export function compareScenarios(
       transportDelta: next.transportationCost - base.transportationCost,
       shortagePenaltyDelta: next.shortageCost - base.shortageCost,
       fulfillmentRate: next.totalDemand === 0 ? null : next.fulfilledUnits / next.totalDemand,
-      baselineFulfillmentRate: base.totalDemand === 0 ? null : base.fulfilledUnits / base.totalDemand
+      baselineFulfillmentRate: base.totalDemand === 0 ? null : base.fulfilledUnits / base.totalDemand,
+      // Percentage-point change is meaningful only when both periods have demand.
+      fulfillmentRateDeltaPoints: base.totalDemand === 0 || next.totalDemand === 0
+        ? null : 100 * (next.fulfilledUnits / next.totalDemand - base.fulfilledUnits / base.totalDemand)
     };
   }).sort((a, b) => b.costDelta - a.costDelta || a.id.localeCompare(b.id));
 }
