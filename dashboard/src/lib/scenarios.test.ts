@@ -72,6 +72,20 @@ describe('scenario comparison', () => {
     ])).toThrow(/unique/);
   });
 
+  it('preserves representable percentage changes for very large finite costs', () => {
+    const baseline = report(1, 1, 1e307);
+    const increased = report(1, 1, 1.5e307);
+    // Floating-point precision makes the small greedy adjustment disappear.
+    for (const snapshot of [baseline, increased]) {
+      snapshot.summary.greedyCost = snapshot.summary.optimizedCost;
+      snapshot.summary.savingsVsGreedy = 0;
+    }
+    const [impact] = compareScenarios(baseline, [
+      { id: 'expensive', label: 'Higher transport cost', report: increased }
+    ]);
+    expect(impact.costDeltaPercent).toBeCloseTo(50);
+  });
+
   it('does not expose infinite percentages for extreme finite costs', () => {
     const expensive = report(1, 1, 1e308);
     // At this magnitude adding five rounds away; use a consistent zero-savings report.
