@@ -51,6 +51,33 @@ class ScenarioAnalyticsTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Duplicate"):
             load_snapshots(self.root)
 
+    def test_duplicate_snapshot_references_are_rejected(self):
+        self.write("manifest.json", {"baseline": "baseline.json", "scenarios": [
+            {"id": "closure", "label": "Warehouse closure", "report": "closure.json"},
+            {"id": "copy", "label": "Same report", "report": "closure.json"}
+        ]})
+        with self.assertRaisesRegex(ValueError, "Duplicate snapshot"):
+            load_snapshots(self.root)
+
+    def test_baseline_cannot_be_reused_as_scenario(self):
+        self.write("manifest.json", {"baseline": "baseline.json", "scenarios": [
+            {"id": "baseline-copy", "label": "Duplicate baseline", "report": "baseline.json"}
+        ]})
+        with self.assertRaisesRegex(ValueError, "Duplicate snapshot"):
+            load_snapshots(self.root)
+
+    def test_fractional_and_unsafe_quantities_are_rejected(self):
+        for quantity in (1.5, 2**53):
+            with self.subTest(quantity=quantity):
+                self.write("closure.json", snapshot(180, quantity, 0))
+                with self.assertRaisesRegex(ValueError, "safe nonnegative integers"):
+                    load_snapshots(self.root)
+
+    def test_aggregate_quantity_overflow_is_rejected(self):
+        self.write("closure.json", snapshot(180, 2**53 - 1, 1))
+        with self.assertRaisesRegex(ValueError, "Aggregate fulfillment"):
+            load_snapshots(self.root)
+
     def test_path_traversal_is_rejected(self):
         self.write("manifest.json", {"baseline": "../baseline.json", "scenarios": []})
         with self.assertRaisesRegex(ValueError, "Unsafe"):
