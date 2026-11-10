@@ -31,6 +31,16 @@ describe('scenario comparison', () => {
     expect(impact.transportDelta).toBe(-4);
     expect(impact.shortagePenaltyDelta).toBe(200);
     expect(impact.fulfillmentRate).toBe(3 / 8);
+    expect(impact.fulfillmentRateDeltaPoints).toBeCloseTo(-25);
+  });
+
+  it('measures service-rate changes even when demand differs', () => {
+    const [impact] = compareScenarios(report(8, 6), [
+      { id: 'surge', label: 'Demand surge', report: report(12, 6) }
+    ]);
+    expect(impact.demandDelta).toBe(4);
+    expect(impact.fulfilledDelta).toBe(0);
+    expect(impact.fulfillmentRateDeltaPoints).toBeCloseTo(-25);
   });
 
   it('ranks the highest additional cost first and breaks ties by id', () => {
@@ -106,6 +116,7 @@ describe('scenario comparison', () => {
     expect(impact.costDeltaPercent).toBeNull();
     expect(impact.baselineFulfillmentRate).toBeNull();
     expect(impact.fulfillmentRate).toBe(0.5);
+    expect(impact.fulfillmentRateDeltaPoints).toBeNull();
     expect(impact.demandDelta).toBe(2);
     expect(impact.fulfilledDelta).toBe(1);
     expect(impact.shortageDelta).toBe(1);
