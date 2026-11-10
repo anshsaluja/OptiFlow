@@ -30,11 +30,18 @@ echo '[4/6] Dashboard static checks, tests and production build'
 )
 
 echo '[5/6] Python analytics and orchestration unit tests'
-python3 -m unittest discover -s analytics -p 'test_*.py' -v
-python3 -m unittest discover -s airflow -p 'test_*.py' -v
+# Keep the DuckDB dependency isolated from the developer's global Python.
+# A temporary environment also avoids requiring an activated project venv.
+PY_ENV="$(mktemp -d)"
+cleanup_python_env() { rm -rf "$PY_ENV"; }
+trap cleanup_python_env EXIT
+python3 -m venv "$PY_ENV"
+"$PY_ENV/bin/python" -m pip install --disable-pip-version-check 'duckdb>=1.1,<2'
+"$PY_ENV/bin/python" -m unittest discover -s analytics -p 'test_*.py' -v
+"$PY_ENV/bin/python" -m unittest discover -s airflow -p 'test_*.py' -v
 
 echo '[6/6] Export scenario impact CSV with DuckDB'
-python3 analytics/scenario_analytics.py output/scenarios output/scenario-impact.csv
+"$PY_ENV/bin/python" analytics/scenario_analytics.py output/scenarios output/scenario-impact.csv
 test -s output/scenario-impact.csv
 echo 'PASS: optimizer reports, dashboard, Python checks and analytics export'
 echo 'NOTE: Docker Compose startup and Airflow scheduler execution are separate checks.'
