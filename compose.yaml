@@ -1,11 +1,13 @@
 # Local OptiFlow dashboard container. Generate snapshots on the host first (see dashboard/README.md).
 # The checkout is read-only. npm must not try to create/update package-lock.json
 # in that mount; only node_modules and SvelteKit build output are writable.
+# Vite 5 bundles its config beside the config file; copy it into writable
+# node_modules so the read-only checkout does not cause an EROFS startup error.
 services:
   dashboard:
     image: node:20-bookworm-slim
     working_dir: /workspace/dashboard
-    command: sh -c "npm install --no-save --package-lock=false --no-audit --no-fund && npm run dev -- --host 0.0.0.0"
+    command: sh -c "npm install --no-save --package-lock=false --no-audit --no-fund && cp vite.config.ts node_modules/optiflow-vite.config.ts && npm run dev -- --config node_modules/optiflow-vite.config.ts --host 0.0.0.0"
     ports:
       - "127.0.0.1:5173:5173"
     environment:
