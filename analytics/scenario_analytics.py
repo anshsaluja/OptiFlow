@@ -31,6 +31,8 @@ def load_snapshots(directory: Path):
             raise ValueError("Unsupported optimizer report version")
         summary = data["summary"]
         values = tuple(summary[k] for k in ("optimizedCost", "fulfilledUnits", "unfulfilledUnits", "totalDemand"))
+        if any(isinstance(v, bool) for v in values[1:]):
+            raise ValueError("Report quantities must be safe nonnegative integers")
         if any(not isinstance(v, (int, float)) or isinstance(v, bool) or not math.isfinite(v) or v < 0 for v in values):
             raise ValueError("Invalid report metrics")
         if any(not isinstance(v, int) or isinstance(v, bool) or v > (2**53 - 1) for v in values[1:3]):
