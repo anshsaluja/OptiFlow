@@ -78,6 +78,20 @@ class ScenarioAnalyticsTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Aggregate fulfillment"):
             load_snapshots(self.root)
 
+    def test_maximum_safe_aggregate_is_accepted(self):
+        self.write("closure.json", snapshot(180, 2**53 - 2, 1))
+        _, rows = load_snapshots(self.root)
+        self.assertEqual(rows[0][-1], 2**53 - 1)
+
+    def test_unsafe_reported_demand_is_rejected_independently(self):
+        for demand in (2**53, 1.5, True):
+            with self.subTest(demand=demand):
+                report = snapshot(180, 8, 2)
+                report["summary"]["totalDemand"] = demand
+                self.write("closure.json", report)
+                with self.assertRaisesRegex(ValueError, "safe nonnegative integers"):
+                    load_snapshots(self.root)
+
     def test_path_traversal_is_rejected(self):
         self.write("manifest.json", {"baseline": "../baseline.json", "scenarios": []})
         with self.assertRaisesRegex(ValueError, "Unsafe"):

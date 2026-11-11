@@ -33,10 +33,12 @@ def load_snapshots(directory: Path):
         values = tuple(summary[k] for k in ("optimizedCost", "fulfilledUnits", "unfulfilledUnits", "totalDemand"))
         if any(not isinstance(v, (int, float)) or isinstance(v, bool) or not math.isfinite(v) or v < 0 for v in values):
             raise ValueError("Invalid report metrics")
-        if any(not isinstance(v, int) or isinstance(v, bool) or v > (2**53 - 1) for v in values[1:]):
+        if any(not isinstance(v, int) or isinstance(v, bool) or v > (2**53 - 1) for v in values[1:3]):
             raise ValueError("Report quantities must be safe nonnegative integers")
         if values[1] + values[2] > (2**53 - 1):
             raise ValueError("Aggregate fulfillment exceeds safe integer range")
+        if not isinstance(values[3], int) or isinstance(values[3], bool) or values[3] > (2**53 - 1):
+            raise ValueError("Report quantities must be safe nonnegative integers")
         if values[1] + values[2] != values[3]:
             raise ValueError("Fulfillment and shortage must equal demand")
         return values
