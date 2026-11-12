@@ -92,5 +92,17 @@ python3 -m venv "$PY_ENV"
 echo '[6/6] Export scenario impact CSV with DuckDB'
 "$PY_ENV/bin/python" analytics/scenario_analytics.py output/scenarios output/scenario-impact.csv
 test -s output/scenario-impact.csv
+echo '[optional] Docker verification regression tests'
+python3 -m unittest discover -s tests -p 'test_isolate_compose.py' -v
+python3 -m unittest discover -s tests -p 'test_verify_docker.py' -v
+
+# Opt-in container smoke test: the generated reports above must exist before
+# running the isolated dashboard. CI can enable this on Docker-capable runners.
+if [[ "${OPTIFLOW_VERIFY_DOCKER:-0}" == "1" ]]; then
+  echo '[optional] Isolated Docker dashboard and Scenario Lab smoke test'
+  bash scripts/verify-docker.sh
+else
+  echo 'NOTE: set OPTIFLOW_VERIFY_DOCKER=1 for isolated Docker HTTP verification.'
+fi
 echo 'PASS: optimizer reports, dashboard, Python checks and analytics export'
-echo 'NOTE: Docker Compose startup and Airflow scheduler execution are separate checks.'
+echo 'NOTE: Airflow scheduler execution requires a separate runtime check.'
