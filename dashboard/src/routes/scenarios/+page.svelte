@@ -5,12 +5,18 @@
   const fmt = (value: number) => new Intl.NumberFormat('en-US', { maximumFractionDigits: 2, signDisplay: 'always' }).format(value);
   const rate = (value: number | null) => value === null ? 'N/A' : `${(100 * value).toFixed(1)}%`;
   // A common scale makes the cost impact of different disruptions comparable.
-  $: maxAbsoluteCostDelta = Math.max(1, ...data.impacts.map((impact) => Math.abs(impact.costDelta)));
   const barWidth = (delta: number, maximum: number) => `${(50 * Math.abs(delta) / maximum).toFixed(2)}%`;
   const barOffset = (delta: number, maximum: number) => `${delta < 0 ? 50 - 50 * Math.abs(delta) / maximum : 50}%`;
   let search = '';
   let impactFilter: ImpactFilter = 'all';
-  $: visibleImpacts = filterScenarioImpacts(data.impacts, search, impactFilter);
+  let sortBy: 'cost' | 'shortage' | 'service' = 'cost';
+  $: visibleImpacts = [...filterScenarioImpacts(data.impacts, search, impactFilter)].sort((a, b) => {
+    if (sortBy === 'shortage') return b.shortageDelta - a.shortageDelta || a.id.localeCompare(b.id);
+    if (sortBy === 'service') return (a.fulfillmentRateDeltaPoints ?? Infinity) - (b.fulfillmentRateDeltaPoints ?? Infinity) || a.id.localeCompare(b.id);
+    return b.costDelta - a.costDelta || a.id.localeCompare(b.id);
+  });
+  $: visibleMaxAbsoluteCostDelta = Math.max(1, ...visibleImpacts.map((impact) => Math.abs(impact.costDelta)));
+  const resetFilters = () => { search = ''; impactFilter = 'all'; sortBy = 'cost'; };
 </script>
 
 <svelte:head>
@@ -27,7 +33,8 @@
     <section class="empty"><h2>No scenarios configured</h2><p>Add scenario entries to the manifest to compare them against the baseline.</p></section>
   {:else}
     <div class="summary"><article><small>SCENARIOS ANALYZED</small><strong>{data.impacts.length}</strong></article><article><small>HIGHEST INCREMENTAL COST</small><strong>{fmt(data.impacts[0].costDelta)}</strong><p>{data.impacts[0].label}</p></article></div>
-    <section class="panel"><h2>Explore scenarios</h2><div class="controls"><label for="scenario-search">Search scenarios</label><input id="scenario-search" type="search" bind:value={search} placeholder="Name or ID" /><label for="impact-filter">Cost impact</label><select id="impact-filter" bind:value={impactFilter}><option value="all">All scenarios</option><option value="worse">Increased cost</option><option value="savings">Savings</option></select><span aria-live="polite">{visibleImpacts.length} of {data.impacts.length} shown</span></div></section>
+    <section class="panel"><h2>Explore scenarios</h2><div class="controls"><label for="scenario-search">Search scenarios</label><input id="scenario-search" type="search" bind:value={search} placeholder="Name or ID" /><label for="impact-filter">Cost impact</label><select id="impact-filter" bind:value={impactFilter}><option value="all">All scenarios</option><option value="worse">Increased cost</option><option value="savings">Savings</option></select><label for="scenario-sort">Rank by</label><select id="scenario-sort" bind:value={sortBy}><option value="cost">Additional cost</option><option value="shortage">Additional shortage</option><option value="service">Service decline</option></select><span aria-live="polite">{visibleImpacts.length} of {data.impacts.length} shown</span><button type="button" on:click={resetFilters}>Reset filters</button></div></section>
+    {#if visibleImpacts.length === 0}<section class="empty" role="status"><h2>No matching scenarios</h2><p>Try another search or cost impact filter to see the comparison results.</p></section>{/if}
     <section class="panel"><h2>Disruption ranking</h2><p class="caption">Demand Δ distinguishes demand surges from supply disruptions. Service Δ measures the fulfillment-rate change in percentage points (pp); N/A means a zero-demand scenario. Positive cost and shortage deltas indicate a worse outcome. Monetary values use dataset units.</p><div class="scroll"><table><thead><tr><th>SCENARIO</th><th>TOTAL COST Δ</th><th>COST CHANGE</th><th>DEMAND Δ</th><th>FULFILLED Δ</th><th>SHORTAGE Δ</th><th>FULFILLMENT</th><th>SERVICE Δ (pp)</th></tr></thead><tbody>
       {#each visibleImpacts as impact (impact.id)}
         <tr><td><strong>{impact.label}</strong><small>{impact.id}</small></td><td class:bad={impact.costDelta > 0} class:good={impact.costDelta < 0}>{fmt(impact.costDelta)}</td><td>{impact.costDeltaPercent === null ? 'N/A' : `${fmt(impact.costDeltaPercent)}%`}</td><td>{fmt(impact.demandDelta)}</td><td>{fmt(impact.fulfilledDelta)}</td><td class:bad={impact.shortageDelta > 0}>{fmt(impact.shortageDelta)}</td><td>{rate(impact.fulfillmentRate)}</td><td class:bad={impact.fulfillmentRateDeltaPoints !== null && impact.fulfillmentRateDeltaPoints < 0} class:good={impact.fulfillmentRateDeltaPoints !== null && impact.fulfillmentRateDeltaPoints > 0}>{impact.fulfillmentRateDeltaPoints === null ? 'N/A' : `${fmt(impact.fulfillmentRateDeltaPoints)} pp`}</td></tr>
@@ -39,7 +46,7 @@
           <div class="impact-row" role="listitem">
             <div class="impact-label"><strong>{impact.label}</strong><span>{fmt(impact.costDelta)}</span></div>
             <div class="impact-track" role="img" aria-label={`${impact.label}: ${impact.costDelta > 0 ? 'additional cost' : impact.costDelta < 0 ? 'savings' : 'no cost change'} ${Math.abs(impact.costDelta).toFixed(2)}`}>
-              <div class="impact-zero"></div><div class="impact-fill" class:savings={impact.costDelta < 0} style:left={barOffset(impact.costDelta, maxAbsoluteCostDelta)} style:width={barWidth(impact.costDelta, maxAbsoluteCostDelta)}></div>
+              <div class="impact-zero"></div><div class="impact-fill" class:savings={impact.costDelta < 0} style:left={barOffset(impact.costDelta, visibleMaxAbsoluteCostDelta)} style:width={barWidth(impact.costDelta, visibleMaxAbsoluteCostDelta)}></div>
             </div>
           </div>
         {/each}
