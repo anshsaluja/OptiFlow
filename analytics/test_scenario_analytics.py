@@ -39,9 +39,32 @@ class ScenarioAnalyticsTests(unittest.TestCase):
         self.assertEqual(rows[0][9], 2)
         self.assertEqual(rows[1][3], -25)
 
-    def test_empty_catalog_is_valid(self):
+    def test_empty_catalog_is_rejected_like_dashboard(self):
         self.write("manifest.json", {"baseline": "baseline.json", "scenarios": []})
-        self.assertEqual(analyze(self.root)[1], [])
+        with self.assertRaisesRegex(ValueError, "between 1 and 30"):
+            load_snapshots(self.root)
+
+    def test_whitespace_only_id_is_rejected(self):
+        self.write("manifest.json", {"baseline": "baseline.json", "scenarios": [
+            {"id": "   ", "label": "Closure", "report": "closure.json"}
+        ]})
+        with self.assertRaisesRegex(ValueError, "empty scenario ID"):
+            load_snapshots(self.root)
+
+    def test_trimmed_ids_cannot_collide(self):
+        self.write("manifest.json", {"baseline": "baseline.json", "scenarios": [
+            {"id": "closure", "label": "First", "report": "closure.json"},
+            {"id": " closure ", "label": "Second", "report": "savings.json"}
+        ]})
+        with self.assertRaisesRegex(ValueError, "Duplicate"):
+            load_snapshots(self.root)
+
+    def test_export_identity_is_normalized(self):
+        self.write("manifest.json", {"baseline": "baseline.json", "scenarios": [
+            {"id": " closure ", "label": " Warehouse closure ", "report": "closure.json"}
+        ]})
+        _, rows = load_snapshots(self.root)
+        self.assertEqual(rows[0][:2], ("closure", "Warehouse closure"))
 
     def test_duplicate_ids_are_rejected(self):
         self.write("manifest.json", {"baseline": "baseline.json", "scenarios": [
@@ -93,7 +116,7 @@ class ScenarioAnalyticsTests(unittest.TestCase):
                     load_snapshots(self.root)
 
     def test_path_traversal_is_rejected(self):
-        self.write("manifest.json", {"baseline": "../baseline.json", "scenarios": []})
+        self.write("manifest.json", {"baseline": "../baseline.json", "scenarios": [{"id": "closure", "label": "Closure", "report": "closure.json"}]})
         with self.assertRaisesRegex(ValueError, "Unsafe"):
             load_snapshots(self.root)
 

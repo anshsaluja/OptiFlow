@@ -17,8 +17,8 @@ def load_snapshots(directory: Path):
     directory = directory.resolve()
     manifest = json.loads((directory / "manifest.json").read_text(encoding="utf-8"))
     scenarios = manifest["scenarios"]
-    if not isinstance(scenarios, list) or len(scenarios) > 30:
-        raise ValueError("Scenario manifest must contain at most 30 entries")
+    if not isinstance(scenarios, list) or not 1 <= len(scenarios) <= 30:
+        raise ValueError("Scenario manifest must contain between 1 and 30 entries")
 
     def report(filename):
         if not isinstance(filename, str) or not filename.endswith(".json") or Path(filename).name != filename:
@@ -51,11 +51,15 @@ def load_snapshots(directory: Path):
     rows = []
     for entry in scenarios:
         scenario_id, label = entry["id"], entry["label"]
-        if not isinstance(scenario_id, str) or not scenario_id or scenario_id in seen:
+        if not isinstance(scenario_id, str) or not scenario_id.strip():
+            raise ValueError("Duplicate or empty scenario ID")
+        scenario_id = scenario_id.strip()
+        if scenario_id in seen:
             raise ValueError("Duplicate or empty scenario ID")
         if not isinstance(label, str) or not label.strip():
             raise ValueError("Empty scenario label")
         seen.add(scenario_id)
+        label = label.strip()
         filename = entry["report"]
         if filename in seen_reports:
             raise ValueError("Duplicate snapshot report reference")
