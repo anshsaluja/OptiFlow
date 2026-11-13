@@ -4,6 +4,18 @@ import argparse
 import time
 import urllib.request
 
+MAX_HTML_BYTES = 2 * 1024 * 1024
+
+
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+    """Treat redirects as failures rather than silently checking another URL."""
+
+    def redirect_request(self, request, fp, code, msg, headers, newurl):
+        return None
+
+
+DEFAULT_OPENER = urllib.request.build_opener(NoRedirect()).open
+
 EXPECTED = {
     "/": ("Network overview", "Shipment allocations", "Snapshot loaded"),
     "/scenarios": ("Scenario impact analysis", "Disruption ranking", "Cost drivers"),
@@ -12,15 +24,17 @@ EXPECTED = {
 
 def check_route(base_url, route, markers, attempts=60, delay=2, timeout=5, opener=None, sleeper=None):
     """Retry startup failures; fail if any required server-rendered marker is absent."""
-    opener = opener or urllib.request.urlopen
+    opener = opener or DEFAULT_OPENER
     sleeper = sleeper or time.sleep
     url = base_url.rstrip("/") + route
     last_error = None
     for attempt in range(attempts):
         try:
             with opener(url, timeout=timeout) as response:
-                body = response.read()
+                body = response.read(MAX_HTML_BYTES + 1)
                 status = response.status
+            if len(body) > MAX_HTML_BYTES:
+                raise RuntimeError(f"{route}: response exceeds {MAX_HTML_BYTES} bytes")
             if status != 200 or not body:
                 raise RuntimeError(f"{route}: status={status}, bytes={len(body)}")
             html = body.decode("utf-8")
