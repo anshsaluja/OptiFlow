@@ -88,5 +88,35 @@ class OutputContractTests(unittest.TestCase):
         self.assertEqual(self.verify(produce), 1)
 
 
+    def test_manifest_missing_scenarios(self):
+        def produce():
+            self.write_valid()
+            self.manifest.write_text('{"baseline": "baseline.json"}')
+        self.assertEqual(self.verify(produce), 1)
+
+    def test_manifest_scenarios_wrong_type(self):
+        def produce():
+            self.write_valid()
+            self.manifest.write_text('{"scenarios": {"id": "baseline"}}')
+        self.assertEqual(self.verify(produce), 1)
+
+    def test_missing_analytics_after_dag(self):
+        def produce():
+            self.write_valid()
+            self.analytics.unlink()
+        self.assertEqual(self.verify(produce), 1)
+
+    def test_blank_csv_column_name(self):
+        def produce():
+            self.write_valid()
+            self.analytics.write_text("scenario_id, ,cost\\nbaseline,x,42\\n")
+        self.assertEqual(self.verify(produce), 1)
+
+    def test_unterminated_quoted_csv_field(self):
+        def produce():
+            self.write_valid()
+            self.analytics.write_text('scenario_id,cost\\n"baseline,42\\n')
+        self.assertEqual(self.verify(produce), 1)
+
 if __name__ == "__main__":
     unittest.main()
