@@ -109,13 +109,13 @@ class OutputContractTests(unittest.TestCase):
     def test_blank_csv_column_name(self):
         def produce():
             self.write_valid()
-            self.analytics.write_text("scenario_id, ,cost\\nbaseline,x,42\\n")
+            self.analytics.write_text("scenario_id, ,cost\nbaseline,x,42\n")
         self.assertEqual(self.verify(produce), 1)
 
     def test_unterminated_quoted_csv_field(self):
         def produce():
             self.write_valid()
-            self.analytics.write_text('scenario_id,cost\\n"baseline,42\\n')
+            self.analytics.write_text('scenario_id,cost\n"baseline,42\n')
         self.assertEqual(self.verify(produce), 1)
 
 if __name__ == "__main__":
