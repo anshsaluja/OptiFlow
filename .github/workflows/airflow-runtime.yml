@@ -1,0 +1,56 @@
+name: Airflow end-to-end runtime
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  airflow-runtime:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    env:
+      AIRFLOW_VERSION: '2.10.5'
+      PYTHON_VERSION: '3.11'
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Set up sbt
+        uses: sbt/setup-sbt@v1
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install Airflow and DuckDB
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "apache-airflow==${AIRFLOW_VERSION}" --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${PYTHON_VERSION}.txt"
+          python -m pip install 'duckdb>=1.1,<2'
+          airflow version
+      - name: Install dashboard dependencies
+        working-directory: dashboard
+        run: npm ci
+      - name: Verify DAG using real Airflow runtime
+        run: python scripts/verify-airflow-runtime.py
+      - name: Upload generated scenario evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: airflow-scenario-evidence
+          path: |
+            output/scenarios/
+            output/scenario-impact.csv
+          if-no-files-found: warn
+          retention-days: 7
