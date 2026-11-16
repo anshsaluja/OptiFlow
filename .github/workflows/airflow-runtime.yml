@@ -2,6 +2,18 @@ name: Airflow end-to-end runtime
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/airflow-runtime.yml'
+      - 'airflow/**'
+      - 'scripts/verify-airflow-runtime.py'
+      - 'scripts/**airflow**'
+      - 'optimizer/**'
+      - 'analytics/**'
+      - 'dashboard/**'
+      - 'build.sbt'
+      - 'project/**'
 
 permissions:
   contents: read
