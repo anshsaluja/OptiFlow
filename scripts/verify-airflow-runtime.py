@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import csv
 import json
+import math
 import os
 import shutil
 import subprocess
@@ -102,18 +103,82 @@ def main() -> int:
         manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
         if not isinstance(manifest, dict) or not isinstance(manifest.get("scenarios"), list) or not manifest["scenarios"]:
             raise RuntimeError("Scenario manifest must contain a nonempty scenarios list")
+        expected = {}
+        for entry in manifest["scenarios"]:
+            if not isinstance(entry, dict):
+                raise RuntimeError("Manifest scenario must be an object")
+            scenario_id, label = entry.get("id"), entry.get("label")
+            if not isinstance(scenario_id, str) or not scenario_id.strip():
+                raise RuntimeError("Manifest scenario ID is missing")
+            if not isinstance(label, str) or not label.strip():
+                raise RuntimeError("Manifest scenario label is missing")
+            scenario_id, label = scenario_id.strip(), label.strip()
+            if scenario_id in expected:
+                raise RuntimeError("Manifest contains duplicate scenario IDs")
+            expected[scenario_id] = label
+
+        required = {
+            "id", "label", "optimized_cost", "cost_delta", "fulfilled",
+            "shortage", "demand", "fulfillment_pct",
+            "fulfilled_delta", "shortage_delta",
+        }
+        observed = set()
         with ANALYTICS.open(newline="", encoding="utf-8") as handle:
-            reader = csv.reader(handle, strict=True)
-            header = next(reader, None)
+            reader = csv.DictReader(handle, strict=True)
+            header = reader.fieldnames
             if not header or any(not column.strip() for column in header) or len(set(header)) != len(header):
                 raise RuntimeError("Analytics CSV has missing or duplicate column names")
-            rows = 0
+            if not required.issubset(header):
+                raise RuntimeError("Analytics CSV missing required metric columns")
             for row in reader:
-                if len(row) != len(header):
+                if None in row or any(value is None for value in row.values()):
                     raise RuntimeError("Analytics CSV has inconsistent column counts")
-                rows += 1
-            if rows == 0:
-                raise RuntimeError("Analytics CSV contains no data rows")
+                scenario_id = row["id"]
+                if scenario_id not in expected or scenario_id in observed:
+                    raise RuntimeError("Analytics CSV has unexpected or duplicate scenario IDs")
+                if row["label"] != expected[scenario_id]:
+                    raise RuntimeError("Analytics label does not match manifest")
+                observed.add(scenario_id)
+                quantities = {}
+                for key in ("fulfilled", "shortage", "demand", "fulfilled_delta", "shortage_delta"):
+                    value = row[key]
+                    if not value or value.strip() != value:
+                        raise RuntimeError(f"Invalid analytics integer metric: {key}")
+                    try:
+                        parsed = int(value)
+                    except ValueError as exc:
+                        raise RuntimeError(f"Invalid analytics integer metric: {key}") from exc
+                    if str(parsed) != value or abs(parsed) > 2**53 - 1:
+                        raise RuntimeError(f"Invalid analytics integer metric: {key}")
+                    quantities[key] = parsed
+                if any(quantities[key] < 0 for key in ("fulfilled", "shortage", "demand")):
+                    raise RuntimeError("Analytics quantities must be nonnegative")
+                if quantities["fulfilled"] + quantities["shortage"] != quantities["demand"]:
+                    raise RuntimeError("Analytics fulfillment does not reconcile with demand")
+                for key in ("optimized_cost", "cost_delta"):
+                    try:
+                        metric = float(row[key])
+                    except ValueError as exc:
+                        raise RuntimeError(f"Invalid analytics numeric metric: {key}") from exc
+                    if not math.isfinite(metric) or (key == "optimized_cost" and metric < 0):
+                        raise RuntimeError(f"Invalid analytics numeric metric: {key}")
+                percentage = row["fulfillment_pct"]
+                if quantities["demand"] == 0:
+                    if percentage != "":
+                        raise RuntimeError("Zero-demand fulfillment percentage must be empty")
+                else:
+                    try:
+                        pct = float(percentage)
+                    except ValueError as exc:
+                        raise RuntimeError("Invalid fulfillment percentage") from exc
+                    if not math.isfinite(pct) or not 0 <= pct <= 100:
+                        raise RuntimeError("Invalid fulfillment percentage")
+                    actual = round(100 * quantities["fulfilled"] / quantities["demand"], 2)
+                    if abs(pct - actual) > 0.011:
+                        raise RuntimeError("Fulfillment percentage does not reconcile")
+        if observed != set(expected):
+            raise RuntimeError("Analytics scenario IDs do not match manifest")
+
     except (OSError, UnicodeError, ValueError, csv.Error, RuntimeError) as exc:
         print(f"Output verification failed: {exc}", file=sys.stderr)
         return 1

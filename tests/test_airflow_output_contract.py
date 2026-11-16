@@ -25,9 +25,14 @@ class OutputContractTests(unittest.TestCase):
         self.manifest = self.root / "manifest.json"
         self.analytics = self.root / "scenario-impact.csv"
 
+    @staticmethod
+    def header():
+        return ("id,label,optimized_cost,cost_delta,fulfilled,shortage,"
+                "demand,fulfillment_pct,fulfilled_delta,shortage_delta\\n").replace("\\n", "\n")
+
     def write_valid(self):
-        self.manifest.write_text(json.dumps({"scenarios": [{"id": "baseline"}]}))
-        self.analytics.write_text("scenario_id,cost\nbaseline,42\n")
+        self.manifest.write_text(json.dumps({"scenarios": [{"id": "closure", "label": "Warehouse closure"}]}))
+        self.analytics.write_text(self.header() + "closure,Warehouse closure,42,2,8,2,10,80,-2,2\\n".replace("\\n", "\n"))
 
     def verify(self, generate=None):
         # The mocked DAG runner is the only producer of artifacts. All output
@@ -116,6 +121,42 @@ class OutputContractTests(unittest.TestCase):
         def produce():
             self.write_valid()
             self.analytics.write_text('scenario_id,cost\n"baseline,42\n')
+        self.assertEqual(self.verify(produce), 1)
+
+    def test_missing_scenario_row(self):
+        def produce():
+            self.write_valid()
+            self.analytics.write_text(self.header())
+        self.assertEqual(self.verify(produce), 1)
+
+    def test_mismatched_scenario_label(self):
+        def produce():
+            self.write_valid()
+            self.analytics.write_text(self.header() + "closure,Wrong,42,2,8,2,10,80,-2,2\\n".replace("\\n", "\n"))
+        self.assertEqual(self.verify(produce), 1)
+
+    def test_nonfinite_cost(self):
+        def produce():
+            self.write_valid()
+            self.analytics.write_text(self.header() + "closure,Warehouse closure,nan,2,8,2,10,80,-2,2\\n".replace("\\n", "\n"))
+        self.assertEqual(self.verify(produce), 1)
+
+    def test_inconsistent_demand(self):
+        def produce():
+            self.write_valid()
+            self.analytics.write_text(self.header() + "closure,Warehouse closure,42,2,8,2,11,80,-2,2\\n".replace("\\n", "\n"))
+        self.assertEqual(self.verify(produce), 1)
+
+    def test_zero_demand_allows_empty_percentage(self):
+        def produce():
+            self.write_valid()
+            self.analytics.write_text(self.header() + "closure,Warehouse closure,42,-2,0,0,0,,0,0\\n".replace("\\n", "\n"))
+        self.assertEqual(self.verify(produce), 0)
+
+    def test_zero_demand_rejects_nonempty_percentage(self):
+        def produce():
+            self.write_valid()
+            self.analytics.write_text(self.header() + "closure,Warehouse closure,42,-2,0,0,0,100,0,0\\n".replace("\\n", "\n"))
         self.assertEqual(self.verify(produce), 1)
 
 if __name__ == "__main__":
