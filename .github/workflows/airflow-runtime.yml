@@ -53,6 +53,15 @@ jobs:
       - name: Install dashboard dependencies
         working-directory: dashboard
         run: npm install --no-audit --no-fund
+      - name: Check dashboard types and Svelte components
+        working-directory: dashboard
+        run: npm run check
+      - name: Test dashboard
+        working-directory: dashboard
+        run: npm test
+      - name: Build dashboard
+        working-directory: dashboard
+        run: npm run build
       - name: Verify DAG using real Airflow runtime
         run: python scripts/verify-airflow-runtime.py
       - name: Upload generated scenario evidence
