@@ -39,7 +39,7 @@
       <div class="two">
         <section class="panel"><div class="panelhead"><div><div class="eyebrow">DEMAND COVERAGE</div><h2>Store fulfillment</h2></div><span>{report.stores.length} stores</span></div>
           {#each report.stores as store (store.id)}
-            <div class="barrow"><div class="barlabel"><strong>{store.id}</strong><span>{fmt(store.demand - store.unmet)} / {fmt(store.demand)}</span></div><div class="track"><div class="fill" style:width={percent(store.demand - store.unmet, store.demand).replace('—','0%')}></div></div></div>
+            <div class="barrow"><div class="barlabel"><strong>{store.id}</strong><span>{store.demand === 0 ? 'No demand' : `${fmt(store.demand - store.unmet)} / ${fmt(store.demand)}`}</span></div><div class="track" role="progressbar" aria-label={`${store.id} demand fulfillment`} aria-valuemin="0" aria-valuemax="100" aria-valuenow={store.demand === 0 ? 0 : Math.max(0, Math.min(100, 100 * (store.demand - store.unmet) / store.demand))} aria-valuetext={store.demand === 0 ? 'No demand' : percent(store.demand - store.unmet, store.demand)}><div class="fill" style:width={percent(store.demand - store.unmet, store.demand).replace('—','0%')}></div></div></div>
           {/each}
         </section>
         <section class="panel"><div class="panelhead"><div><div class="eyebrow">CAPACITY</div><h2>Warehouse utilization</h2></div><span>{report.warehouses.length} warehouses</span></div>

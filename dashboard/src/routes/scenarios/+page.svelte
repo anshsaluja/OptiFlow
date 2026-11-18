@@ -17,6 +17,7 @@
     return b.costDelta - a.costDelta || a.id.localeCompare(b.id);
   });
   $: visibleMaxAbsoluteCostDelta = Math.max(1, ...visibleImpacts.map((impact) => Math.abs(impact.costDelta)));
+  $: rankingDescription = sortBy === 'cost' ? 'additional cost' : sortBy === 'shortage' ? 'additional unmet demand' : 'largest fulfillment-rate decline';
   const resetFilters = () => { search = ''; impactFilter = 'all'; sortBy = 'cost'; };
 </script>
 
@@ -27,7 +28,7 @@
 
 <main>
   <nav><a href="/">← Allocation overview</a><span>OPTIFLOW / SCENARIO LAB</span></nav>
-  <header><div><p class="eyebrow">SUPPLY CHAIN RESILIENCE</p><h1>Scenario impact analysis</h1><p>Compare separately optimized disruptions against a common baseline. Ranked by incremental total cost.</p></div><div class="badge">LOCAL SNAPSHOTS</div></header>
+  <header><div><p class="eyebrow">SUPPLY CHAIN RESILIENCE</p><h1>Scenario impact analysis</h1><p>Compare separately optimized disruptions against a common baseline. Choose a ranking to compare cost, shortages, or service decline against the baseline.</p></div><div class="badge">LOCAL SNAPSHOTS</div></header>
   {#if data.error}
     <section class="empty"><h2>Scenario snapshots not ready</h2><p>{data.error}</p><p>Create <code>output/scenarios/manifest.json</code> and the referenced Scala-generated allocation reports, or set <code>OPTIFLOW_SCENARIOS_PATH</code>.</p></section>
   {:else if data.impacts.length === 0}
@@ -36,7 +37,7 @@
     <div class="summary"><article><small>SCENARIOS ANALYZED</small><strong>{data.impacts.length}</strong></article><article><small>HIGHEST INCREMENTAL COST</small><strong>{fmt(data.impacts[0].costDelta)}</strong><p>{data.impacts[0].label}</p></article></div>
     <section class="panel"><h2>Explore scenarios</h2><div class="controls"><label for="scenario-search">Search scenarios</label><input id="scenario-search" type="search" bind:value={search} placeholder="Name or ID" /><label for="impact-filter">Cost impact</label><select id="impact-filter" bind:value={impactFilter}><option value="all">All scenarios</option><option value="worse">Increased cost</option><option value="savings">Savings</option></select><label for="scenario-sort">Rank by</label><select id="scenario-sort" bind:value={sortBy}><option value="cost">Additional cost</option><option value="shortage">Additional shortage</option><option value="service">Service decline</option></select><span aria-live="polite">{visibleImpacts.length} of {data.impacts.length} shown</span><button type="button" on:click={resetFilters}>Reset filters</button></div></section>
     {#if visibleImpacts.length === 0}<section class="empty" role="status"><h2>No matching scenarios</h2><p>Try another search or cost impact filter to see the comparison results.</p></section>{/if}
-    <section class="panel"><h2>Disruption ranking</h2><p class="caption">Demand Δ distinguishes demand surges from supply disruptions. Service Δ measures the fulfillment-rate change in percentage points (pp); N/A means a zero-demand scenario. Positive cost and shortage deltas indicate a worse outcome. Monetary values use dataset units.</p><div class="scroll"><table><thead><tr><th>SCENARIO</th><th>TOTAL COST Δ</th><th>COST CHANGE</th><th>DEMAND Δ</th><th>FULFILLED Δ</th><th>SHORTAGE Δ</th><th>RISK INTERPRETATION</th><th>FULFILLMENT</th><th>SERVICE Δ (pp)</th></tr></thead><tbody>
+    <section class="panel"><h2>Disruption ranking</h2><p class="caption">Sorted by {rankingDescription}. Demand Δ distinguishes demand surges from supply disruptions. Service Δ measures the fulfillment-rate change in percentage points (pp); N/A means a zero-demand scenario. Positive cost and shortage deltas indicate a worse outcome. Monetary values use dataset units.</p><div class="scroll"><table><thead><tr><th>SCENARIO</th><th>TOTAL COST Δ</th><th>COST CHANGE</th><th>DEMAND Δ</th><th>FULFILLED Δ</th><th>SHORTAGE Δ</th><th>RISK INTERPRETATION</th><th>FULFILLMENT</th><th>SERVICE Δ (pp)</th></tr></thead><tbody>
       {#each visibleImpacts as impact (impact.id)}
         <tr><td><strong>{impact.label}</strong><small>{impact.id}</small></td><td class:bad={impact.costDelta > 0} class:good={impact.costDelta < 0}>{fmt(impact.costDelta)}</td><td>{impact.costDeltaPercent === null ? 'N/A' : `${fmt(impact.costDeltaPercent)}%`}</td><td>{fmt(impact.demandDelta)}</td><td>{fmt(impact.fulfilledDelta)}</td><td class:bad={impact.shortageDelta > 0}>{fmt(impact.shortageDelta)}</td><td class="insight">{explainScenarioImpact(impact)}</td><td>{rate(impact.fulfillmentRate)}</td><td class:bad={impact.fulfillmentRateDeltaPoints !== null && impact.fulfillmentRateDeltaPoints < 0} class:good={impact.fulfillmentRateDeltaPoints !== null && impact.fulfillmentRateDeltaPoints > 0}>{impact.fulfillmentRateDeltaPoints === null ? 'N/A' : `${fmt(impact.fulfillmentRateDeltaPoints)} pp`}</td></tr>
       {/each}
