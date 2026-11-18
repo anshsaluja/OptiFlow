@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { filterScenarioImpacts } from './scenario-filters';
+import { filterScenarioImpacts, sortScenarioImpacts } from './scenario-filters';
 import type { ScenarioImpact } from './scenarios';
 
 const scenario = (id: string, label: string, costDelta: number): ScenarioImpact => ({
@@ -44,5 +44,29 @@ describe('filterScenarioImpacts', () => {
   it('handles empty inputs and searches with no matches', () => {
     expect(filterScenarioImpacts([], '', 'all')).toEqual([]);
     expect(filterScenarioImpacts(ranked, 'nonexistent', 'all')).toEqual([]);
+  });
+});
+
+describe('sortScenarioImpacts', () => {
+  const impacts = [
+    { ...scenario('z', 'Z', 20), shortageDelta: 4, fulfillmentRateDeltaPoints: -3 },
+    { ...scenario('b', 'B', 20), shortageDelta: 8, fulfillmentRateDeltaPoints: null },
+    { ...scenario('a', 'A', -5), shortageDelta: 8, fulfillmentRateDeltaPoints: -7 },
+    { ...scenario('c', 'C', 0), shortageDelta: 0, fulfillmentRateDeltaPoints: null }
+  ];
+  it('ranks cost descending with deterministic ID ties', () => {
+    expect(sortScenarioImpacts(impacts, 'cost').map((s) => s.id)).toEqual(['b', 'z', 'c', 'a']);
+  });
+  it('ranks additional shortage descending with deterministic ID ties', () => {
+    expect(sortScenarioImpacts(impacts, 'shortage').map((s) => s.id)).toEqual(['a', 'b', 'z', 'c']);
+  });
+  it('ranks service decline first and missing service comparisons last', () => {
+    expect(sortScenarioImpacts(impacts, 'service').map((s) => s.id)).toEqual(['a', 'z', 'b', 'c']);
+  });
+  it('does not mutate inputs and handles empty results', () => {
+    const before = impacts.map((s) => s.id);
+    sortScenarioImpacts(impacts, 'service');
+    expect(impacts.map((s) => s.id)).toEqual(before);
+    expect(sortScenarioImpacts([], 'cost')).toEqual([]);
   });
 });

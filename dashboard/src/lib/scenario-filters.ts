@@ -22,3 +22,27 @@ export function filterScenarioImpacts(
     return matchesSearch && matchesCost;
   });
 }
+
+export type ScenarioSort = 'cost' | 'shortage' | 'service';
+
+/** Rank disruption impacts without mutating source snapshots.
+ * Missing service-rate comparisons sort last, not as the worst disruption.
+ * Stable ID tie-breaking keeps the ranking reproducible across report runs.
+ */
+export function sortScenarioImpacts(
+  impacts: readonly ScenarioImpact[],
+  sortBy: ScenarioSort
+): ScenarioImpact[] {
+  return [...impacts].sort((a, b) => {
+    if (sortBy === 'shortage') return b.shortageDelta - a.shortageDelta || a.id.localeCompare(b.id);
+    if (sortBy === 'service') {
+      const aRate = a.fulfillmentRateDeltaPoints;
+      const bRate = b.fulfillmentRateDeltaPoints;
+      if (aRate === null && bRate !== null) return 1;
+      if (bRate === null && aRate !== null) return -1;
+      if (aRate !== null && bRate !== null && aRate !== bRate) return aRate - bRate;
+      return a.id.localeCompare(b.id);
+    }
+    return b.costDelta - a.costDelta || a.id.localeCompare(b.id);
+  });
+}

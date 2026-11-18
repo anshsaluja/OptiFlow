@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { PageData } from './$types';
-  import { filterScenarioImpacts, type ImpactFilter } from '$lib/scenario-filters';
+  import { filterScenarioImpacts, sortScenarioImpacts, type ImpactFilter, type ScenarioSort } from '$lib/scenario-filters';
   export let data: PageData;
   import { explainScenarioImpact } from '$lib/scenario-insights';
   const fmt = (value: number) => new Intl.NumberFormat('en-US', { maximumFractionDigits: 2, signDisplay: 'always' }).format(value);
@@ -10,12 +10,8 @@
   const barOffset = (delta: number, maximum: number) => `${delta < 0 ? 50 - 50 * Math.abs(delta) / maximum : 50}%`;
   let search = '';
   let impactFilter: ImpactFilter = 'all';
-  let sortBy: 'cost' | 'shortage' | 'service' = 'cost';
-  $: visibleImpacts = [...filterScenarioImpacts(data.impacts, search, impactFilter)].sort((a, b) => {
-    if (sortBy === 'shortage') return b.shortageDelta - a.shortageDelta || a.id.localeCompare(b.id);
-    if (sortBy === 'service') return (a.fulfillmentRateDeltaPoints ?? Infinity) - (b.fulfillmentRateDeltaPoints ?? Infinity) || a.id.localeCompare(b.id);
-    return b.costDelta - a.costDelta || a.id.localeCompare(b.id);
-  });
+  let sortBy: ScenarioSort = 'cost';
+  $: visibleImpacts = sortScenarioImpacts(filterScenarioImpacts(data.impacts, search, impactFilter), sortBy);
   $: visibleMaxAbsoluteCostDelta = Math.max(1, ...visibleImpacts.map((impact) => Math.abs(impact.costDelta)));
   $: rankingDescription = sortBy === 'cost' ? 'additional cost' : sortBy === 'shortage' ? 'additional unmet demand' : 'largest fulfillment-rate decline';
   const resetFilters = () => { search = ''; impactFilter = 'all'; sortBy = 'cost'; };
