@@ -42,4 +42,21 @@ describe('selectShipments', () => {
     expect(selectShipments(tied, '', 'cost').map((s) => s.storeId))
       .toEqual(['ST-A', 'ST-Z']);
   });
+
+  it('matches terms across warehouse and store IDs regardless of order', () => {
+    expect(selectShipments(routes, 'wh-a st-1', 'units').map((s) => s.storeId))
+      .toEqual(['ST-1']);
+    expect(selectShipments(routes, 'ST-1 WH-A', 'units').map((s) => s.storeId))
+      .toEqual(['ST-1']);
+  });
+
+  it('normalizes multiple spaces, tabs and capitalization', () => {
+    expect(selectShipments(routes, '  WH-B \t ST-2  ', 'units').map((s) => s.storeId))
+      .toEqual(['ST-2']);
+  });
+
+  it('requires all search terms to match an endpoint', () => {
+    expect(selectShipments(routes, 'WH-A ST-3', 'units')).toEqual([]);
+    expect(selectShipments(routes, 'WH-A nonexistent', 'units')).toEqual([]);
+  });
 });

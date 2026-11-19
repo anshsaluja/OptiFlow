@@ -3,21 +3,21 @@ import type { Shipment } from './report';
 export type ShipmentSort = 'units' | 'cost';
 
 /**
- * Search route endpoints independently and sort without mutating the snapshot.
- * Stable route-ID tie breaks make the same report render reproducibly.
+ * Match every whitespace-separated term against either route endpoint.
+ * Sort without mutating the source snapshot, with deterministic ID tie breaks.
  */
 export function selectShipments(
   shipments: readonly Shipment[],
   search: string,
   sortBy: ShipmentSort
 ): Shipment[] {
-  const query = search.trim().toLocaleLowerCase();
+  const terms = search.trim().toLowerCase().split(/\s+/).filter(Boolean);
   return shipments
-    .filter((shipment) =>
-      !query ||
-      shipment.warehouseId.toLocaleLowerCase().includes(query) ||
-      shipment.storeId.toLocaleLowerCase().includes(query)
-    )
+    .filter((shipment) => {
+      const warehouse = shipment.warehouseId.toLowerCase();
+      const store = shipment.storeId.toLowerCase();
+      return terms.every((term) => warehouse.includes(term) || store.includes(term));
+    })
     .sort((a, b) => {
       const difference = sortBy === 'cost'
         ? b.transportCost - a.transportCost
