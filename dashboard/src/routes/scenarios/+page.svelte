@@ -3,6 +3,7 @@
   import { filterScenarioImpacts, sortScenarioImpacts, type ImpactFilter, type ScenarioSort } from '$lib/scenario-filters';
   export let data: PageData;
   import { explainScenarioImpact } from '$lib/scenario-insights';
+  import { summarizeScenarioCosts } from '$lib/scenario-summary';
   const fmt = (value: number) => new Intl.NumberFormat('en-US', { maximumFractionDigits: 2, signDisplay: 'always' }).format(value);
   const rate = (value: number | null) => value === null ? 'N/A' : `${(100 * value).toFixed(1)}%`;
   // A common scale makes the cost impact of different disruptions comparable.
@@ -12,8 +13,9 @@
   let impactFilter: ImpactFilter = 'all';
   let sortBy: ScenarioSort = 'cost';
   $: visibleImpacts = sortScenarioImpacts(filterScenarioImpacts(data.impacts, search, impactFilter), sortBy);
-  $: highestCostIncrease = data.impacts.reduce<(typeof data.impacts)[number] | null>((highest, impact) => impact.costDelta > 0 && (highest === null || impact.costDelta > highest.costDelta) ? impact : highest, null);
-  $: greatestCostSaving = data.impacts.reduce<(typeof data.impacts)[number] | null>((greatest, impact) => impact.costDelta < 0 && (greatest === null || impact.costDelta < greatest.costDelta) ? impact : greatest, null);
+  $: costSummary = summarizeScenarioCosts(data.impacts);
+  $: highestCostIncrease = costSummary.highestCostIncrease;
+  $: greatestCostSaving = costSummary.greatestCostSaving;
   $: visibleMaxAbsoluteCostDelta = Math.max(1, ...visibleImpacts.map((impact) => Math.abs(impact.costDelta)));
   $: rankingDescription = sortBy === 'cost' ? 'additional cost' : sortBy === 'shortage' ? 'additional unmet demand' : 'largest fulfillment-rate decline';
   const resetFilters = () => { search = ''; impactFilter = 'all'; sortBy = 'cost'; };
