@@ -1,13 +1,11 @@
 <script lang="ts">
   import type { PageData } from './$types';
+  import { selectShipments } from '$lib/shipment-view';
   export let data: PageData;
   let search = '';
   let sortBy: 'units' | 'cost' = 'units';
   $: report = data.report;
-  $: shipments = (report?.shipments ?? [])
-    .filter((s) => `${s.warehouseId} ${s.storeId}`.toLowerCase().includes(search.toLowerCase()))
-    .slice()
-    .sort((a, b) => sortBy === 'units' ? b.units - a.units : b.transportCost - a.transportCost);
+  $: shipments = selectShipments(report?.shipments ?? [], search, sortBy);
   const fmt = (n: number) => new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(n);
   const percent = (n: number, d: number) => d ? `${(100 * n / d).toFixed(1)}%` : '—';
 </script>
