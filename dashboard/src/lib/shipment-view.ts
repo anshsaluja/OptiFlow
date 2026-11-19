@@ -27,3 +27,8 @@ export function selectShipments(
         a.storeId.localeCompare(b.storeId);
     });
 }
+
+/** Encode both endpoint IDs without ambiguous concatenation. */
+export function shipmentRouteKey(shipment: Pick<Shipment, 'warehouseId' | 'storeId'>): string {
+  return JSON.stringify([shipment.warehouseId, shipment.storeId]);
+}

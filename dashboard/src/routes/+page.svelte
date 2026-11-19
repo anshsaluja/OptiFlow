@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { PageData } from './$types';
-  import { selectShipments } from '$lib/shipment-view';
+  import { selectShipments, shipmentRouteKey } from '$lib/shipment-view';
   export let data: PageData;
   let search = '';
   let sortBy: 'units' | 'cost' = 'units';
@@ -49,7 +49,7 @@
         </section>
       </div>
       <section class="panel tablepanel"><div class="panelhead"><div><div class="eyebrow">OPTIMAL ROUTING</div><h2>Shipment allocations</h2></div><div class="tools"><input aria-label="Search routes" placeholder="Search warehouse or store" bind:value={search} /><select aria-label="Sort shipments" bind:value={sortBy}><option value="units">Most units</option><option value="cost">Highest cost</option></select></div></div>
-        <div class="tablewrap"><table><thead><tr><th>ORIGIN</th><th>DESTINATION</th><th>UNITS</th><th>UNIT COST</th><th>TRANSPORT COST</th></tr></thead><tbody>{#each shipments as shipment (shipment.warehouseId + shipment.storeId)}<tr><td>{shipment.warehouseId}</td><td>{shipment.storeId}</td><td><strong>{fmt(shipment.units)}</strong></td><td>{fmt(shipment.unitCost)}</td><td>{fmt(shipment.transportCost)}</td></tr>{:else}<tr><td colspan="5">No matching shipments</td></tr>{/each}</tbody></table></div>
+        <div class="tablewrap"><table><thead><tr><th>ORIGIN</th><th>DESTINATION</th><th>UNITS</th><th>UNIT COST</th><th>TRANSPORT COST</th></tr></thead><tbody>{#each shipments as shipment (shipmentRouteKey(shipment))}<tr><td>{shipment.warehouseId}</td><td>{shipment.storeId}</td><td><strong>{fmt(shipment.units)}</strong></td><td>{fmt(shipment.unitCost)}</td><td>{fmt(shipment.transportCost)}</td></tr>{:else}<tr><td colspan="5">No matching shipments</td></tr>{/each}</tbody></table></div>
       </section>
       <footer>Solver: {report.status} · Transport: {fmt(report.summary.transportationCost)} · Shortage penalty cost: {fmt(report.summary.shortageCost)} · Schema v{report.schemaVersion}</footer>
     {/if}

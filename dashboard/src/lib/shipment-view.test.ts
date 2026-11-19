@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Shipment } from './report';
-import { selectShipments } from './shipment-view';
+import { selectShipments, shipmentRouteKey } from './shipment-view';
 
 const routes: Shipment[] = [
   { warehouseId: 'WH-B', storeId: 'ST-2', units: 8, unitCost: 2, transportCost: 16 },
@@ -58,5 +58,17 @@ describe('selectShipments', () => {
   it('requires all search terms to match an endpoint', () => {
     expect(selectShipments(routes, 'WH-A ST-3', 'units')).toEqual([]);
     expect(selectShipments(routes, 'WH-A nonexistent', 'units')).toEqual([]);
+  });
+});
+
+describe('shipmentRouteKey', () => {
+  it('distinguishes route endpoints with otherwise identical concatenations', () => {
+    expect(shipmentRouteKey({ warehouseId: 'AB', storeId: 'C' }))
+      .not.toBe(shipmentRouteKey({ warehouseId: 'A', storeId: 'BC' }));
+  });
+
+  it('returns the same key for the same endpoint IDs', () => {
+    expect(shipmentRouteKey({ warehouseId: 'WH-A', storeId: 'ST-1' }))
+      .toBe(shipmentRouteKey({ warehouseId: 'WH-A', storeId: 'ST-1' }));
   });
 });
