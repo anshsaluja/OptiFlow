@@ -7,6 +7,8 @@ Install: python3 -m pip install duckdb
 import csv
 import json
 import math
+import os
+import tempfile
 import sys
 from pathlib import Path
 
@@ -101,10 +103,25 @@ def main(argv):
     if len(argv) == 3:
         output = Path(argv[2])
         output.parent.mkdir(parents=True, exist_ok=True)
-        with output.open("w", newline="", encoding="utf-8") as handle:
-            writer = csv.writer(handle)
-            writer.writerow(headers)
-            writer.writerows(rows)
+        # Publish a complete CSV atomically so interrupted exports never leave
+        # a truncated analytics artifact for the dashboard or DAG verifier.
+        temporary = None
+        try:
+            with tempfile.NamedTemporaryFile(
+                mode="w", newline="", encoding="utf-8",
+                dir=output.parent, prefix=f".{output.name}.", suffix=".tmp",
+                delete=False,
+            ) as handle:
+                temporary = Path(handle.name)
+                writer = csv.writer(handle)
+                writer.writerow(headers)
+                writer.writerows(rows)
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(temporary, output)
+        finally:
+            if temporary is not None:
+                temporary.unlink(missing_ok=True)
         print(f"Wrote {len(rows)} scenario comparisons to {output}")
     else:
         writer = csv.writer(sys.stdout)
