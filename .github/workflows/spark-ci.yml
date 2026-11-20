@@ -11,7 +11,7 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -22,3 +22,35 @@ jobs:
       - name: Spark normalization tests
         working-directory: spark
         run: sbt test
+      - name: Execute real Parquet pipeline on demo data
+        working-directory: spark
+        run: sbt 'run ../datasets/demo ../output/spark-parquet parquet'
+      - name: Verify Parquet output tables
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          root = Path("output/spark-parquet")
+          tables = ("warehouses", "stores", "routes", "route_opportunities", "network_summary")
+          for name in tables:
+              directory = root / name
+              assert directory.is_dir(), f"Missing Parquet table: {directory}"
+              assert list(directory.rglob("*.parquet")), f"No Parquet data in {directory}"
+          print("Verified all five Parquet output tables")
+          PY
+      - name: Execute real Delta Lake pipeline on demo data
+        working-directory: spark
+        run: sbt 'run ../datasets/demo ../output/spark-delta delta'
+      - name: Verify Delta transaction logs and data
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          root = Path("output/spark-delta")
+          tables = ("warehouses", "stores", "routes", "route_opportunities", "network_summary")
+          for name in tables:
+              directory = root / name
+              log = directory / "_delta_log"
+              assert log.is_dir(), f"Missing Delta log: {log}"
+              assert list(log.glob("*.json")), f"No Delta transaction JSON in {log}"
+              assert list(directory.rglob("*.parquet")), f"No Delta Parquet data in {directory}"
+          print("Verified all five Delta Lake output tables")
+          PY
