@@ -33,10 +33,15 @@ def verify(root: Path, fmt: str) -> None:
                 lines = commit.read_text(encoding="utf-8").splitlines()
                 if not lines:
                     raise ValueError("empty transaction log")
-                for line in lines:
+                for number, line in enumerate(lines, 1):
+                    if not line.strip():
+                        raise ValueError(f"blank Delta action at line {number}")
                     action = json.loads(line)
-                    if not isinstance(action, dict) or not action or not set(action).intersection(ACTIONS):
-                        raise ValueError("invalid Delta action")
+                    if not isinstance(action, dict) or len(action) != 1:
+                        raise ValueError(f"expected exactly one Delta action at line {number}")
+                    name, payload = next(iter(action.items()))
+                    if name not in ACTIONS or not isinstance(payload, dict):
+                        raise ValueError(f"invalid Delta action or payload at line {number}")
             except (UnicodeError, json.JSONDecodeError, ValueError) as exc:
                 raise ValueError(f"Invalid Delta transaction commit {commit}: {exc}") from exc
 

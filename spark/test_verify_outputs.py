@@ -22,6 +22,9 @@ class VerifyOutputsTests(unittest.TestCase):
     def log(self):
         return self.root / TABLES[0] / "_delta_log"
 
+    def replace(self, content):
+        (self.log() / "00000000000000000000.json").write_text(content)
+
     def test_valid_parquet(self):
         verify(self.root, "parquet")
 
@@ -65,6 +68,56 @@ class VerifyOutputsTests(unittest.TestCase):
     def test_valid_second_commit(self):
         (self.log() / "00000000000000000001.json").write_text('{"commitInfo":{}}\n')
         verify(self.root, "delta")
+
+    def test_missing_directory(self):
+        (self.root / TABLES[0]).rename(self.root / "moved")
+        with self.assertRaisesRegex(ValueError, "Missing parquet table"):
+            verify(self.root, "parquet")
+
+    def test_empty_parquet(self):
+        (self.root / TABLES[0] / "part-00000.parquet").write_bytes(b"")
+        with self.assertRaisesRegex(ValueError, "Parquet part"):
+            verify(self.root, "parquet")
+
+    def test_missing_log(self):
+        (self.log() / "00000000000000000000.json").unlink()
+        self.log().rmdir()
+        with self.assertRaisesRegex(ValueError, "Missing Delta transaction log"):
+            verify(self.root, "delta")
+
+    def test_valid_multiple_lines(self):
+        self.replace('{"protocol":{}}\\n{"add":{"path":"x"}}\\n')
+        verify(self.root, "delta")
+
+    def test_blank_line(self):
+        self.replace('{"add":{}}\\n \\n')
+        with self.assertRaisesRegex(ValueError, "blank Delta action"):
+            verify(self.root, "delta")
+
+    def test_multiple_actions(self):
+        self.replace('{"add":{},"remove":{}}\\n')
+        with self.assertRaisesRegex(ValueError, "exactly one"):
+            verify(self.root, "delta")
+
+    def test_action_with_extra_key(self):
+        self.replace('{"add":{},"unexpected":1}\\n')
+        with self.assertRaisesRegex(ValueError, "exactly one"):
+            verify(self.root, "delta")
+
+    def test_non_object_action(self):
+        self.replace('[]\\n')
+        with self.assertRaisesRegex(ValueError, "exactly one"):
+            verify(self.root, "delta")
+
+    def test_null_payload(self):
+        self.replace('{"add":null}\\n')
+        with self.assertRaisesRegex(ValueError, "payload"):
+            verify(self.root, "delta")
+
+    def test_scalar_payload(self):
+        self.replace('{"add":5}\\n')
+        with self.assertRaisesRegex(ValueError, "payload"):
+            verify(self.root, "delta")
 
 
 if __name__ == "__main__":
