@@ -119,6 +119,35 @@ class VerifyOutputsTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "payload"):
             verify(self.root, "delta")
 
+    def test_duplicate_action_key(self):
+        self.replace('{"add":{},"add":{}}\\n')
+        with self.assertRaisesRegex(ValueError, "duplicate"):
+            verify(self.root, "delta")
+
+    def test_duplicate_nested_key(self):
+        self.replace('{"add":{"path":"x","path":"y"}}\\n')
+        with self.assertRaisesRegex(ValueError, "duplicate"):
+            verify(self.root, "delta")
+
+    def test_duplicate_deeply_nested_key(self):
+        self.replace('{"add":{"stats":{"a":1,"a":2}}}\\n')
+        with self.assertRaisesRegex(ValueError, "duplicate"):
+            verify(self.root, "delta")
+
+    def test_duplicate_in_second_record(self):
+        self.replace('{"protocol":{}}\\n{"add":{"x":1,"x":2}}\\n')
+        with self.assertRaisesRegex(ValueError, "duplicate"):
+            verify(self.root, "delta")
+
+    def test_nonstandard_numeric_constant(self):
+        self.replace('{"add":{"n":NaN}}\\n')
+        with self.assertRaisesRegex(ValueError, "nonstandard"):
+            verify(self.root, "delta")
+
+    def test_valid_same_nested_key_in_separate_objects(self):
+        self.replace('{"add":{"a":{"id":1},"b":{"id":2}}}\\n')
+        verify(self.root, "delta")
+
 
 if __name__ == "__main__":
     unittest.main()
