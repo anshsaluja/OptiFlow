@@ -86,36 +86,36 @@ class VerifyOutputsTests(unittest.TestCase):
             verify(self.root, "delta")
 
     def test_valid_multiple_lines(self):
-        self.replace('{"protocol":{}}\\n{"add":{"path":"x"}}\\n')
+        self.replace('{"protocol":{}}\n{"add":{"path":"x"}}\n')
         verify(self.root, "delta")
 
     def test_blank_line(self):
-        self.replace('{"add":{}}\\n \\n')
+        self.replace('{"add":{}}\n \n')
         with self.assertRaisesRegex(ValueError, "blank Delta action"):
             verify(self.root, "delta")
 
     def test_multiple_actions(self):
-        self.replace('{"add":{},"remove":{}}\\n')
+        self.replace('{"add":{},"remove":{}}\n')
         with self.assertRaisesRegex(ValueError, "exactly one"):
             verify(self.root, "delta")
 
     def test_action_with_extra_key(self):
-        self.replace('{"add":{},"unexpected":1}\\n')
+        self.replace('{"add":{},"unexpected":1}\n')
         with self.assertRaisesRegex(ValueError, "exactly one"):
             verify(self.root, "delta")
 
     def test_non_object_action(self):
-        self.replace('[]\\n')
+        self.replace('[]\n')
         with self.assertRaisesRegex(ValueError, "exactly one"):
             verify(self.root, "delta")
 
     def test_null_payload(self):
-        self.replace('{"add":null}\\n')
+        self.replace('{"add":null}\n')
         with self.assertRaisesRegex(ValueError, "payload"):
             verify(self.root, "delta")
 
     def test_scalar_payload(self):
-        self.replace('{"add":5}\\n')
+        self.replace('{"add":5}\n')
         with self.assertRaisesRegex(ValueError, "payload"):
             verify(self.root, "delta")
 
