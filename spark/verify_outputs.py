@@ -9,6 +9,24 @@ DELTA_COMMIT = re.compile(r"^[0-9]{20}\.json$")
 ACTIONS = {"add", "remove", "metaData", "protocol", "commitInfo", "txn", "cdc", "domainMetadata", "sidecar"}
 
 
+def _unique_pairs(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"duplicate JSON object key: {key!r}")
+        result[key] = value
+    return result
+
+
+def _reject_constant(value):
+    raise ValueError(f"nonstandard JSON numeric constant: {value}")
+
+
+def strict_loads(line):
+    """Reject duplicate keys and nonstandard numeric constants in Delta JSON."""
+    return json.loads(line, object_pairs_hook=_unique_pairs, parse_constant=_reject_constant)
+
+
 def verify(root: Path, fmt: str) -> None:
     if fmt not in {"parquet", "delta"}:
         raise ValueError(f"Unsupported format: {fmt}")
@@ -36,7 +54,7 @@ def verify(root: Path, fmt: str) -> None:
                 for number, line in enumerate(lines, 1):
                     if not line.strip():
                         raise ValueError(f"blank Delta action at line {number}")
-                    action = json.loads(line)
+                    action = strict_loads(line)
                     if not isinstance(action, dict) or len(action) != 1:
                         raise ValueError(f"expected exactly one Delta action at line {number}")
                     name, payload = next(iter(action.items()))
