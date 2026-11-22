@@ -3,6 +3,7 @@ import argparse
 import json
 import re
 from pathlib import Path
+from parquet_footer import validate_parquet_parts
 
 TABLES = ("warehouses", "stores", "routes", "route_opportunities", "network_summary")
 DELTA_COMMIT = re.compile(r"^[0-9]{20}\.json$")
@@ -34,8 +35,7 @@ def verify(root: Path, fmt: str) -> None:
         directory = root / table
         if not directory.is_dir():
             raise ValueError(f"Missing {fmt} table: {directory}")
-        if not any(p.is_file() and p.stat().st_size > 0 for p in directory.glob("part-*.parquet")):
-            raise ValueError(f"Missing nonempty Parquet part file: {directory}")
+        validate_parquet_parts(directory)
         if fmt != "delta":
             continue
         log = directory / "_delta_log"

@@ -1,5 +1,6 @@
 """Filesystem fixture regression tests for Spark output validation."""
 import json
+import struct
 import tempfile
 import unittest
 from pathlib import Path
@@ -14,7 +15,8 @@ class VerifyOutputsTests(unittest.TestCase):
         for table in TABLES:
             directory = self.root / table
             directory.mkdir()
-            (directory / "part-00000.parquet").write_bytes(b"PAR1")
+            metadata = b"\x00"
+            (directory / "part-00000.parquet").write_bytes(b"PAR1" + metadata + struct.pack("<I", len(metadata)) + b"PAR1")
             log = directory / "_delta_log"
             log.mkdir()
             (log / "00000000000000000000.json").write_text(json.dumps({"add": {"path": "part-00000.parquet"}}) + "\n")
@@ -27,6 +29,16 @@ class VerifyOutputsTests(unittest.TestCase):
 
     def test_valid_parquet(self):
         verify(self.root, "parquet")
+
+    def test_corrupt_second_part(self):
+        (self.root / TABLES[0] / "part-00001.parquet").write_bytes(b"PAR1")
+        with self.assertRaisesRegex(ValueError, "too short"):
+            verify(self.root, "parquet")
+
+    def test_invalid_parquet_footer(self):
+        (self.root / TABLES[0] / "part-00000.parquet").write_bytes(b"PAR1x" + struct.pack("<I", 1) + b"NOPE")
+        with self.assertRaisesRegex(ValueError, "footer"):
+            verify(self.root, "parquet")
 
     def test_valid_delta(self):
         verify(self.root, "delta")
