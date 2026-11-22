@@ -21,7 +21,7 @@ jobs:
       - uses: sbt/setup-sbt@v1
       - name: Spark output verifier regression tests
         working-directory: spark
-        run: python3 -m unittest discover -p 'test_verify_outputs.py' -v
+        run: python3 -m unittest discover -p 'test_*.py' -v
       - name: Spark normalization tests
         working-directory: spark
         run: sbt test
