@@ -49,6 +49,13 @@ jobs:
                   columns = con.execute("DESCRIBE SELECT * FROM read_parquet(?)", [paths]).fetchall()
                   if not columns:
                       raise AssertionError(f"Empty schema for {table}")
+                  names = [column[0] for column in columns]
+                  if len(names) != len(set(names)):
+                      raise AssertionError(f"Duplicate Parquet column names in {table}: {names}")
+                  # The demo's core dimensions and summary must contain data.
+                  # Opportunity rows may legitimately be absent in some scenarios.
+                  if table != "route_opportunities" and rows == 0:
+                      raise AssertionError(f"Empty required demo Parquet table: {table}")
                   print(f"{table}: {rows} rows, {len(columns)} columns, {len(parts)} part files")
           PY
       - name: Execute real Delta Lake pipeline on demo data
