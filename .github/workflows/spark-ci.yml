@@ -30,6 +30,27 @@ jobs:
         run: sbt 'run ../datasets/demo ../output/spark-parquet parquet'
       - name: Verify Parquet output tables
         run: python3 spark/verify_outputs.py output/spark-parquet parquet
+      - name: Install independent Parquet reader
+        run: python3 -m pip install 'duckdb==1.4.1'
+      - name: Read back all Spark Parquet tables with DuckDB
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import duckdb
+
+          tables = ("warehouses", "stores", "routes", "route_opportunities", "network_summary")
+          with duckdb.connect(":memory:") as con:
+              for table in tables:
+                  parts = sorted((Path("output/spark-parquet") / table).glob("part-*.parquet"))
+                  if not parts:
+                      raise AssertionError(f"No Parquet parts for {table}")
+                  paths = [str(part) for part in parts]
+                  rows = con.execute("SELECT count(*) FROM read_parquet(?)", [paths]).fetchone()[0]
+                  columns = con.execute("DESCRIBE SELECT * FROM read_parquet(?)", [paths]).fetchall()
+                  if not columns:
+                      raise AssertionError(f"Empty schema for {table}")
+                  print(f"{table}: {rows} rows, {len(columns)} columns, {len(parts)} part files")
+          PY
       - name: Execute real Delta Lake pipeline on demo data
         working-directory: spark
         run: sbt 'run ../datasets/demo ../output/spark-delta delta'
