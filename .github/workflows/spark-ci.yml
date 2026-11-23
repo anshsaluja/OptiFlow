@@ -81,13 +81,12 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           import duckdb
+          from spark.delta_snapshot import active_delta_files
 
           tables = ("warehouses", "stores", "routes", "route_opportunities", "network_summary")
           with duckdb.connect(":memory:") as con:
               for table in tables:
-                  parts = sorted((Path("output/spark-delta") / table).glob("part-*.parquet"))
-                  if not parts:
-                      raise AssertionError(f"No Delta Parquet parts for {table}")
+                  parts = active_delta_files(Path("output/spark-delta") / table)
                   schema = None
                   total_rows = 0
                   for part in parts:
