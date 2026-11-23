@@ -45,7 +45,20 @@ jobs:
                   if not parts:
                       raise AssertionError(f"No Parquet parts for {table}")
                   paths = [str(part) for part in parts]
+                  # Decode each part independently: aggregate reads alone can hide
+                  # inconsistent per-part schemas in partitioned output.
+                  part_schemas = []
+                  part_rows = 0
+                  for part in paths:
+                      part_columns = con.execute("DESCRIBE SELECT * FROM read_parquet(?)", [part]).fetchall()
+                      part_schemas.append([(col[0], col[1]) for col in part_columns])
+                      part_rows += con.execute("SELECT count(*) FROM read_parquet(?)", [part]).fetchone()[0]
+                      con.execute("SELECT * FROM read_parquet(?) LIMIT 1", [part]).fetchall()
+                  if any(schema != part_schemas[0] for schema in part_schemas[1:]):
+                      raise AssertionError(f"Inconsistent Parquet part schemas in {table}")
                   rows = con.execute("SELECT count(*) FROM read_parquet(?)", [paths]).fetchone()[0]
+                  if rows != part_rows:
+                      raise AssertionError(f"Parquet row count mismatch in {table}: {rows} vs {part_rows}")
                   columns = con.execute("DESCRIBE SELECT * FROM read_parquet(?)", [paths]).fetchall()
                   if not columns:
                       raise AssertionError(f"Empty schema for {table}")
@@ -63,3 +76,31 @@ jobs:
         run: sbt 'run ../datasets/demo ../output/spark-delta delta'
       - name: Verify Delta transaction logs and data
         run: python3 spark/verify_outputs.py output/spark-delta delta
+      - name: Independently decode Delta Parquet data with DuckDB
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import duckdb
+
+          tables = ("warehouses", "stores", "routes", "route_opportunities", "network_summary")
+          with duckdb.connect(":memory:") as con:
+              for table in tables:
+                  parts = sorted((Path("output/spark-delta") / table).glob("part-*.parquet"))
+                  if not parts:
+                      raise AssertionError(f"No Delta Parquet parts for {table}")
+                  schema = None
+                  total_rows = 0
+                  for part in parts:
+                      columns = con.execute("DESCRIBE SELECT * FROM read_parquet(?)", [str(part)]).fetchall()
+                      current = [(col[0], col[1]) for col in columns]
+                      if not current or len({name for name, _ in current}) != len(current):
+                          raise AssertionError(f"Invalid Delta Parquet schema: {part}")
+                      if schema is not None and current != schema:
+                          raise AssertionError(f"Inconsistent Delta Parquet schemas: {table}")
+                      schema = current
+                      total_rows += con.execute("SELECT count(*) FROM read_parquet(?)", [str(part)]).fetchone()[0]
+                      con.execute("SELECT * FROM read_parquet(?) LIMIT 1", [str(part)]).fetchall()
+                  if table != "route_opportunities" and total_rows == 0:
+                      raise AssertionError(f"Empty required Delta table: {table}")
+                  print(f"Delta {table}: {total_rows} decoded rows, {len(parts)} parts")
+          PY
