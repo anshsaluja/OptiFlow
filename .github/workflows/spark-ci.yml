@@ -103,3 +103,30 @@ jobs:
                       raise AssertionError(f"Empty required Delta table: {table}")
                   print(f"Delta {table}: {total_rows} decoded rows, {len(parts)} parts")
           PY
+      - name: Compare Parquet and Delta logical table contents
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import duckdb
+          from spark.delta_snapshot import active_delta_files
+
+          tables = ("warehouses", "stores", "routes", "route_opportunities", "network_summary")
+          with duckdb.connect(":memory:") as con:
+              for table in tables:
+                  parquet = [str(p) for p in sorted((Path("output/spark-parquet") / table).glob("part-*.parquet"))]
+                  delta = [str(p) for p in active_delta_files(Path("output/spark-delta") / table)]
+                  left = con.execute("DESCRIBE SELECT * FROM read_parquet(?)", [parquet]).fetchall()
+                  right = con.execute("DESCRIBE SELECT * FROM read_parquet(?)", [delta]).fetchall()
+                  if [(c[0], c[1]) for c in left] != [(c[0], c[1]) for c in right]:
+                      raise AssertionError(f"Logical schema mismatch: {table}")
+                  # EXCEPT ALL preserves duplicate multiplicity and handles NULLs.
+                  for a, b in ((parquet, delta), (delta, parquet)):
+                      difference = con.execute(
+                          "SELECT count(*) FROM (SELECT * FROM read_parquet(?) "
+                          "EXCEPT ALL SELECT * FROM read_parquet(?)) AS differences",
+                          [a, b],
+                      ).fetchone()[0]
+                      if difference:
+                          raise AssertionError(f"Logical row mismatch in {table}: {difference} unmatched rows")
+                  print(f"{table}: Parquet and Delta contents agree")
+          PY
