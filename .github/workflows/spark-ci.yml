@@ -130,3 +130,15 @@ jobs:
                           raise AssertionError(f"Logical row mismatch in {table}: {difference} unmatched rows")
                   print(f"{table}: Parquet and Delta contents agree")
           PY
+      - name: Generate validated snapshot inventories
+        run: |
+          python3 spark/snapshot_inventory.py output/spark-parquet parquet > output/parquet-inventory.json
+          python3 spark/snapshot_inventory.py output/spark-delta delta > output/delta-inventory.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: spark-snapshot-inventories
+          path: |
+            output/parquet-inventory.json
+            output/delta-inventory.json
+          if-no-files-found: error
+          retention-days: 7
